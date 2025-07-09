@@ -1,0 +1,23 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .:
+    dependencies:
+      '@vercel/edge':
+        specifier: ^0.1.2
+        version: 0.1.2
+
+packages:
+
+  '@vercel/edge@0.1.2':
+    resolution: {integrity: sha512-NmoJ4JvF2/LxU8e8fRJcxaMrO9A8a2WmW6CO9GEomlDltlREyQTUWMk13BuCDDpXUPcSBDrZ2TJIoWiFQEI4sg==}
+    deprecated: This package is deprecated. You should to use `@vercel/functions` instead.
+
+snapshots:
+
+  '@vercel/edge@0.1.2': {}
