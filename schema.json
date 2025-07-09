@@ -1,0 +1,135 @@
+{
+  "type": "object",
+  "description": "A schema for defining a physics exam with various question types. This version uses arrays for lists of items and avoids complex types.",
+  "properties": {
+    "exam_title": {
+      "type": "string",
+      "description": "The official title of the exam.",
+      "example": "General Physics I Final Exam"
+    },
+    "questions": {
+      "type": "array",
+      "description": "An array containing all the questions and problems for the exam.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "A unique identifier for the question (e.g., 'q1', 'p2').",
+            "pattern": "^[qp][1-9][0-9]*$"
+          },
+          "type": {
+            "type": "string",
+            "description": "The category of the question, which determines its structure.",
+            "enum": [
+              "short_answer",
+              "graphical",
+              "derivation",
+              "multiple_choice",
+              "numerical_problem"
+            ]
+          },
+          "prompt": {
+            "type": "string",
+            "description": "The main text of the question being asked."
+          },
+          "figure": {
+            "type": "object",
+            "description": "An optional figure or diagram accompanying the question.",
+            "properties": {
+              "description": {
+                "type": "string",
+                "description": "A textual description of the figure's contents."
+              },
+              "filename": {
+                "type": "string",
+                "description": "The filename of the image for the figure."
+              }
+            },
+            "required": [
+              "description",
+              "filename"
+            ]
+          },
+          "given": {
+            "type": "array",
+            "description": "An array of key-value pairs for given data and constants.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string",
+                  "description": "The symbol or name of the constant (e.g., 'g')."
+                },
+                "value": {
+                  "type": "string",
+                  "description": "The value of the constant, represented as a string (e.g., '9.8 m/s²')."
+                }
+              },
+              "required": [
+                "key",
+                "value"
+              ]
+            }
+          },
+          "tasks": {
+            "type": "array",
+            "description": "A list of specific tasks or values to calculate for a numerical problem.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "options": {
+            "type": "array",
+            "description": "An array of key-value pairs for multiple-choice options.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string",
+                  "description": "The option label (e.g., 'a', 'b')."
+                },
+                "value": {
+                  "type": "string",
+                  "description": "The text for the option."
+                }
+              },
+              "required": [
+                "key",
+                "value"
+              ]
+            }
+          },
+          "answer": {
+            "type": "object",
+            "description": "Contains the final answer and the detailed solution.",
+            "properties": {
+              "final": {
+                "type": "string",
+                "description": "The concise, final answer(s), always as an array of strings."
+              },
+              "solution": {
+                "type": "string",
+                "description": "A step-by-step explanation, derivation, or justification for the final answer."
+              }
+            },
+            "required": [
+              "solution"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "prompt",
+          "answer"
+        ]
+      },
+      "minItems": 1
+    }
+  },
+  "required": [
+    "exam_title",
+    "questions"
+  ]
+}
