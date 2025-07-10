@@ -13,10 +13,10 @@
 
         <style>
             html,
-            body {
+            body,
+            .boxed {
                 width: 100%;
                 font-family: "Poppins", sans-serif;
-                background-color: #f8fafc; /* slate-50 */
             }
 
             h1,
@@ -25,11 +25,6 @@
             h4 {
                 font-weight: 600;
                 letter-spacing: -0.04em;
-                color: #1e293b; /* slate-800 */
-            }
-
-            .boxed {
-                width: 100%;
             }
         </style>
 
@@ -45,39 +40,32 @@
         ></script>
     </head>
     <body>
-        <div class="max-w-screen-md mx-auto py-8 px-4 sm:px-6 lg:px-8 bg-white shadow-lg rounded-lg mt-8 mb-8">
-                <h1 x-text="data.exam_title" class="text-4xl font-extrabold text-center mb-6">Exam</h1>
-                <hr class="my-6 border-slate-200"/>
-                <div class="mt-4">
-                    <div x-show="!loaded" class="text-center py-12">
-                        <label
-                            class="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 cursor-pointer shadow-md transition duration-150 ease-in-out"
-                            for="file"
-                        >
-                            <svg class="-ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                <path fill-rule="evenodd" d="M.5 8A.5.5 0 011 7.5h18a.5.5 0 010 1H1A.5.5 0 01.5 8zM3 4a1 1 0 011-1h12a1 1 0 011 1v12a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm2 2v8h10V6H5zm2 2a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H8a1 1 0 01-1-1V8z" clip-rule="evenodd" />
-                            </svg>
-                            Click here to load an exam
-                        </label>
-                        <input
-                            type="file"
-                            @change="loadExam"
-                            hidden
-                            id="file"
-                            name="file"
-                        />
-                    </div>
+        <div class="max-w-screen-md mx-auto py-6 px-6" x-data="exam">
+            <h1 x-text="data.exam_title" class="text-3xl">Exam</h1>
+            <hr class="my-4 border-slate-200 md:w-4/5 mx-auto"/>
+            <div class="mt-2">
+                <div x-show="!loaded">
+                    <label
+                        class="bg-slate-600 px-2 py-1 rounded-md text-white cursor-pointer"
+                        for="file"
+                    >
+                        Click here to load an exam
+                    </label>
+                    <input
+                        type="file"
+                        @change="loadExam"
+                        hidden
+                        id="file"
+                        name="file"
+                    />
+                </div>
 
                 <div x-show="loaded">
-                    <div x-show="loaded" class="mb-6 sticky top-0 z-10 bg-white py-4 shadow-sm rounded-b-lg">
+                    <div class="mb-2 sticky top-4 z-10">
                         <label
-                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200 cursor-pointer transition duration-150 ease-in-out shadow-sm"
+                            class="bg-slate-100 px-2 py-1 rounded-md cursor-pointer"
                             for="toggleAnswers"
                         >
-                            <svg class="-ml-0.5 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
                             Toggle Answers
                         </label>
                         <input
@@ -85,73 +73,73 @@
                             @change="toggleAnswers"
                             id="toggleAnswers"
                             name="toggleAnswers"
-                            class="sr-only"
+                            hidden
                         />
                     </div>
 
-                    <template x-for="q in data.questions" :key="q.id">
-                        <div class="mt-8 p-6 bg-white rounded-lg shadow-sm border border-slate-200">
-                            <p class="text-lg font-semibold text-slate-800 mb-2">
+                    <template x-for="q in data.questions">
+                        <div class="mt-8">
+                            <p>
                                 <span
                                     x-text="q.id"
-                                    class="text-slate-500 uppercase italic mr-2"
+                                    class="text-slate-400 uppercase italic"
                                 ></span
-                                ><span> </span><span x-text="q.prompt"></span>
+                                >.<span> </span><span x-text="q.prompt"></span>
                             </p>
 
-                            <div x-show="q.options" class="mt-4 space-y-2">
-                                <template x-for="e in q.options" :key="e.key">
-                                    <p class="text-slate-700">
-                                        <span class="font-medium" x-text="e.key"></span>)
+                            <div x-show="q.options" class="mt-2">
+                                <template x-for="e in q.options">
+                                    <p>
+                                        <span x-text="e.key"></span>)
                                         <span x-text="e.value"></span>
                                     </p>
                                 </template>
                             </div>
 
-                            <div x-show="q.figure" class="mt-4 p-4 bg-slate-50 rounded-md border border-slate-200">
-                                <p class="font-semibold text-slate-700 mb-2">Figure Description</p>
-                                <p x-text="q?.figure?.description" class="text-slate-600"></p>
+                            <div x-show="q.figure" class="mt-2">
+                                <p class="font-medium">Figure Description</p>
+                                <p x-text="q?.figure?.description"></p>
                             </div>
 
-                            <div x-show="q.given" class="mt-4 p-4 bg-slate-50 rounded-md border border-slate-200">
-                                <p class="font-semibold text-slate-700 mb-2">Data Given</p>
-                                <ul class="list-disc list-inside text-slate-600">
-                                    <template x-for="e in q.given" :key="e.key">
+                            <div x-show="q.given" class="mt-2">
+                                <p class="font-medium">Data Given</p>
+                                <ul>
+                                    <template x-for="e in q.given">
                                         <li>
-                                            <span class="font-medium" x-text="e.key"></span> =
+                                            <span x-text="e.key"></span> =
                                             <span x-text="e.value"></span>
                                         </li>
                                     </template>
                                 </ul>
                             </div>
 
-                            <div x-show="q.tasks" class="mt-4 p-4 bg-slate-50 rounded-md border border-slate-200">
-                                <p class="font-semibold text-slate-700 mb-2">Tasks</p>
-                                <ol class="list-decimal list-inside text-slate-600">
-                                    <template x-for="task in q.tasks" :key="task">
-                                        <li><span x-text="task"></span></li>
+                            <div x-show="q.tasks" class="mt-2">
+                                <p class="font-medium">Tasks</p>
+                                <ol>
+                                    <template x-for="task in q.tasks">
+                                        <li x-text="task"></li>
                                     </template>
                                 </ol>
                             </div>
 
                             <div
                                 x-show="showAnswers"
-                                class="bg-green-50 px-4 py-3 rounded-md mt-4 border border-green-200"
+                                class="bg-slate-50 px-2 py-1 rounded-md mt-2"
                             >
-                                <p x-show="q.answer.final" class="mb-2">
+                                <p x-show="q.answer.final">
                                     <span
-                                        class="font-semibold text-green-700 uppercase tracking-wider text-sm"
-                                        >Final Answer</span
+                                        class="font-medium text-slate-500 uppercase tracking-wider"
+                                        >Final</span
                                     ><br />
-                                    <span x-text="q.answer.final" class="text-green-800 text-lg font-medium"></span>
+                                    <span x-text="q.answer.final"></span>
                                 </p>
 
                                 <div x-show="q.answer.solution">
                                     <span
-                                        class="font-semibold text-green-700 uppercase tracking-wider text-sm"
+                                        class="font-medium text-slate-500 uppercase tracking-wider"
                                         >Solution</span
                                     >
-                                    <div x-html="q.answer.solution" class="prose prose-sm mt-2 text-green-800"></div>
+                                    <div x-html="q.answer.solution"></div>
                                 </div>
                             </div>
                         </div>
