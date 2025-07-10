@@ -211,10 +211,16 @@
                         const answersBoxes =
                             document.querySelectorAll("textarea");
 
-                        const answers = Array.from(answersBoxes).map((e) => ({
-                            id: e.id,
-                            value: e.value,
-                        }));
+                        const answers = Array.from(answersBoxes).map((e) => {
+                            const question = this.data.questions.find(
+                                (q) => q.id == e.id,
+                            );
+
+                            return {
+                                user_answer: e.value,
+                                question: question,
+                            };
+                        });
 
                         const blob = new Blob(
                             [JSON.stringify(answers, null, 2)],
