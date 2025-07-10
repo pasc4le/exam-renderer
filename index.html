@@ -75,6 +75,12 @@
                             name="toggleAnswers"
                             hidden
                         />
+                        <button
+                            class="ml-2 px-2 py-1 bg-blue-100 rounded-md cursor-pointer"
+                            @click="saveAnswers"
+                        >
+                            Save Answers
+                        </button>
                     </div>
 
                     <template x-for="q in data.questions">
@@ -121,6 +127,12 @@
                                     </template>
                                 </ol>
                             </div>
+
+                            <textarea
+                                :id="q.id"
+                                class="border-1 border-slate-200 w-full mt-2 px-2 py-1 rounded-md outline-none"
+                                placeholder="Answer"
+                            ></textarea>
 
                             <div
                                 x-show="showAnswers"
@@ -193,6 +205,36 @@
 
                     toggleAnswers(e) {
                         this.showAnswers = e.target.checked;
+                    },
+
+                    saveAnswers() {
+                        const answersBoxes =
+                            document.querySelectorAll("textarea");
+
+                        const answers = Array.from(answersBoxes).map((e) => ({
+                            id: e.id,
+                            value: e.value,
+                        }));
+
+                        const blob = new Blob(
+                            [JSON.stringify(answers, null, 2)],
+                            {
+                                type: "octet/stream",
+                            },
+                        );
+
+                        const url = URL.createObjectURL(blob);
+
+                        const a = document.createElement("a");
+                        a.href = url;
+                        a.style = "display: hidden";
+                        a.download = this.data.exam_title + "_answers.json";
+
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+
+                        URl.revokeObjectURL(url);
                     },
                 }));
             });
