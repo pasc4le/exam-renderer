@@ -44,6 +44,22 @@
               "filename": {
                 "type": "string",
                 "description": "The filename of the image for the figure."
+              },
+              "render": {
+                "type": "object",
+                "description": "Contains code to render a diagram.",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": ["tikz"],
+                    "description": "The type of rendering modality."
+                  },
+                  "content": {
+                    "type": "string",
+                    "description": "The code to render the diagram."
+                  }
+                },
+                "required": ["type", "content"]
               }
             },
             "required": [
