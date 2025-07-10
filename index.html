@@ -130,6 +130,7 @@
 
                             <textarea
                                 :id="q.id"
+                                :value="q.user_answer"
                                 class="border-1 border-slate-200 w-full mt-2 px-2 py-1 rounded-md outline-none"
                                 placeholder="Answer"
                             ></textarea>
@@ -211,19 +212,26 @@
                         const answersBoxes =
                             document.querySelectorAll("textarea");
 
-                        const answers = Array.from(answersBoxes).map((e) => {
-                            const question = this.data.questions.find(
-                                (q) => q.id == e.id,
-                            );
+                        const answers = Object.fromEntries(
+                            Array.from(answersBoxes).map((e) => [
+                                e.id,
+                                e.value,
+                            ]),
+                        );
 
-                            return {
-                                user_answer: e.value,
-                                question: question,
-                            };
-                        });
+                        const examWithAnswers = JSON.parse(
+                            JSON.stringify(this.data),
+                        );
+
+                        examWithAnswers.questions =
+                            examWithAnswers.questions.map((q) => {
+                                q["user_answer"] = answers[q.id];
+
+                                return q;
+                            });
 
                         const blob = new Blob(
-                            [JSON.stringify(answers, null, 2)],
+                            [JSON.stringify(examWithAnswers, null, 2)],
                             {
                                 type: "octet/stream",
                             },
@@ -240,7 +248,7 @@
                         a.click();
                         document.body.removeChild(a);
 
-                        URl.revokeObjectURL(url);
+                        URL.revokeObjectURL(url);
                     },
                 }));
             });
