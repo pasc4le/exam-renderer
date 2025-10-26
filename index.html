@@ -81,6 +81,12 @@
                         >
                             Save Answers
                         </button>
+                        <button
+                            class="ml-2 px-2 py-1 bg-red-100 rounded-md cursor-pointer"
+                            @click="evaluate"
+                        >
+                            Evaluate
+                        </button>
                     </div>
 
                     <template x-for="q in data.questions">
@@ -176,6 +182,96 @@
                 return res;
             };
 
+            const save = (key, value) => {
+                localStorage.setItem(key, JSON.stringify(value));
+                return value;
+            };
+
+            const load = (key, fallback) => {
+                const v = localStorage.getItem(key);
+                if (v == "") return save(key, fallback);
+                return JSON.parse(v);
+            };
+
+            async function getEvaluation(apiKey, prompt, systemPrompt = null) {
+                const model = "gemini-2.5-flash-lite-preview-06-17";
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+                const requestBody = {
+                    contents: [
+                        {
+                            parts: [
+                                {
+                                    text: prompt,
+                                },
+                            ],
+                        },
+                    ],
+                    generationConfig: {
+                        response_mime_type: "application/json",
+                        response_schema: {
+                            type: "OBJECT",
+                            properties: {
+                                questions_score: {
+                                    type: "ARRAY",
+                                    items: {
+                                        type: "OBJECT",
+                                        properties: {
+                                            id: {
+                                                type: "STRING",
+                                            },
+                                            value: {
+                                                type: "NUMBER",
+                                                description:
+                                                    "A score out of 10",
+                                            },
+                                        },
+                                        required: ["id", "value"],
+                                    },
+                                },
+                            },
+                            required: ["questions_score"],
+                        },
+                    },
+                };
+
+                if (systemPrompt) {
+                    requestBody.system_instruction = {
+                        parts: [
+                            {
+                                text: systemPrompt,
+                            },
+                        ],
+                    };
+                }
+
+                try {
+                    const response = await fetch(url, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify(requestBody),
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(
+                            `API request failed with status ${response.status}: ${errorData.error.message}`,
+                        );
+                    }
+
+                    const data = await response.json();
+                    const structuredJsonResponse = JSON.parse(
+                        data.candidates[0].content.parts[0].text,
+                    );
+                    return structuredJsonResponse;
+                } catch (error) {
+                    console.error("Error fetching from Gemini API:", error);
+                    throw error;
+                }
+            }
+
             document.addEventListener("alpine:init", () => {
                 window.Alpine.data("exam", () => ({
                     data: {
@@ -208,7 +304,7 @@
                         this.showAnswers = e.target.checked;
                     },
 
-                    saveAnswers() {
+                    getAnswers() {
                         const answersBoxes =
                             document.querySelectorAll("textarea");
 
@@ -230,6 +326,12 @@
                                 return q;
                             });
 
+                        return examWithAnswers;
+                    },
+
+                    saveAnswers() {
+                        const examWithAnswers = this.getAnswers();
+
                         const blob = new Blob(
                             [JSON.stringify(examWithAnswers, null, 2)],
                             {
@@ -249,6 +351,42 @@
                         document.body.removeChild(a);
 
                         URL.revokeObjectURL(url);
+                    },
+
+                    async evaluate() {
+                        const examWithAnswers = this.getAnswers();
+
+                        const apiKey = prompt("Insert your Gemini API Key");
+
+                        if (apiKey == "") return;
+
+                        let evaluationPrompt = "";
+                        evaluationPrompt += "Student Exam Answers\n";
+
+                        for (const q of examWithAnswers.questions) {
+                            let ans = q.user_answer.trim();
+                            if (ans == "") ans = "NO ANSWER";
+
+                            evaluationPrompt += q.id + ". " + q.prompt + "\n\n";
+                            evaluationPrompt +=
+                                "Student Answer: " + ans + "\n\n";
+                            evaluationPrompt +=
+                                "--------\nProfessor Answer: " +
+                                q.answer.final +
+                                "\n\n";
+                            evaluationPrompt +=
+                                "Professor Explaination: " +
+                                q.answer.solution +
+                                "\n\n\n";
+                        }
+
+                        evaluationPrompt = evaluationPrompt.trim();
+
+                        const evaluation = await getEvaluation(
+                            apiKey,
+                            evaluationPrompt,
+                            "Evaluate the student answers based on the professors' answers. Give a score for each question in the structure provided.",
+                        );
                     },
                 }));
             });
