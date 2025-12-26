@@ -63,7 +63,7 @@
                 </h1>
             </div>
 
-            <div class="flex gap-2">
+            <div class="flex flex-wrap gap-2 justify-end">
                 <select x-model="managerSelectedTag" @change="loadManagerCards"
                     class="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 shadow-sm min-w-[150px]">
                     <option value="">All Tags</option>
@@ -73,11 +73,11 @@
                 </select>
                 <div class="flex gap-2">
                     <button @click="deleteSelectedCards()" :disabled="managerSelectedIds.length === 0"
-                        class="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors shadow-sm shadow-red-200 dark:shadow-red-900/30">
+                        class="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors shadow-sm shadow-red-200 dark:shadow-red-900/30 whitespace-nowrap">
                         Delete Selected
                     </button>
                     <button @click="deleteAllCards()"
-                        class="px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-lg transition-colors border border-red-100 dark:border-red-900/50">
+                        class="px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-lg transition-colors border border-red-100 dark:border-red-900/50 whitespace-nowrap">
                         Delete All
                     </button>
                 </div>
