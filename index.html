@@ -53,6 +53,13 @@
                 <button @click="loadStats(); view = 'stats'"
                     :class="view === 'stats' ? 'bg-indigo-50 text-indigo-600 font-medium' : 'text-slate-500 hover:bg-slate-50'"
                     class="px-4 py-2 rounded-lg transition-colors text-sm cursor-pointer">Statistics</button>
+                <button @click="loadCards(); view = 'cards'"
+                    :class="view === 'cards' ? 'bg-indigo-50 text-indigo-600 font-medium' : 'text-slate-500 hover:bg-slate-50'"
+                    class="px-4 py-2 rounded-lg transition-colors text-sm cursor-pointer relative">
+                    Cards
+                    <span x-show="cardsStats.due > 0" x-text="cardsStats.due"
+                        class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full"></span>
+                </button>
             </nav>
         </div>
 
@@ -462,11 +469,164 @@
             </div>
         </div>
 
+        <!-- CARDS VIEW -->
+        <div x-show="view === 'cards'" x-transition.opacity>
+            <div class="max-w-4xl mx-auto">
+
+                <!-- Stats Header -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+                        <div class="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">Due Now</div>
+                        <div class="text-2xl font-bold text-slate-800" x-text="cardsStats.due">0</div>
+                    </div>
+                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+                        <div class="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">Learning</div>
+                        <div class="text-2xl font-bold text-amber-600" x-text="cardsStats.learning">0</div>
+                    </div>
+                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+                        <div class="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">To Review</div>
+                        <div class="text-2xl font-bold text-indigo-600" x-text="cardsStats.review">0</div>
+                    </div>
+                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+                        <div class="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">Total Cards</div>
+                        <div class="text-2xl font-bold text-slate-800" x-text="cardsStats.total">0</div>
+                    </div>
+                </div>
+
+                <!-- Control Bar -->
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-2xl font-bold text-slate-800">Flashcards</h2>
+                    <select x-model="selectedCardTag" @change="loadCards"
+                        class="bg-white border border-slate-300 text-slate-700 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 shadow-sm">
+                        <option value="">All Tags</option>
+                        <template x-for="tag in availableCardTags" :key="tag">
+                            <option :value="tag" x-text="tag"></option>
+                        </template>
+                    </select>
+                </div>
+
+                <!-- Study Area -->
+                <div class="relative min-h-[400px]">
+
+                    <template x-if="cards.length === 0">
+                        <div
+                            class="absolute inset-0 flex flex-col items-center justify-center bg-white rounded-3xl shadow-sm border border-slate-200 p-8 text-center text-slate-500">
+                            <div class="mb-4 text-green-500 bg-green-50 p-4 rounded-full">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                                </svg>
+                            </div>
+                            <h3 class="text-xl font-bold text-slate-800 mb-2">All Caught Up!</h3>
+                            <p>You have no cards due for review right now.</p>
+                            <button @click="loadCards"
+                                class="mt-4 text-indigo-600 hover:underline text-sm">Refresh</button>
+                        </div>
+                    </template>
+
+                    <template x-if="cards.length > 0">
+                        <div class="bg-white rounded-3xl shadow-lg border border-slate-200 overflow-hidden flex flex-col min-h-[500px]"
+                            @keydown.window="handleCardKey">
+
+                            <!-- Progress Bar -->
+                            <div class="h-1 bg-slate-100">
+                                <div class="h-full bg-indigo-500 transition-all duration-300"
+                                    :style="'width: ' + ((currentCardIndex + 1) / cards.length * 100) + '%'"></div>
+                            </div>
+
+                            <div class="p-8 flex-1 flex flex-col">
+                                <div class="flex justify-between items-start mb-6">
+                                    <span
+                                        class="text-xs font-bold tracking-wider text-slate-400 uppercase">Question</span>
+                                    <div class="flex gap-2">
+                                        <template x-for="tag in currentCard.tags">
+                                            <span
+                                                class="text-[10px] uppercase font-bold bg-slate-100 text-slate-500 px-2 py-1 rounded-md"
+                                                x-text="tag"></span>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                <div class="text-xl text-slate-800 font-medium leading-relaxed mb-8">
+                                    <div class="prose prose-slate max-w-none" x-text="currentCard.front"></div>
+                                </div>
+
+                                <!-- Card Options if MCQ -->
+                                <template x-if="currentCard.options && currentCard.options.length > 0">
+                                    <div class="space-y-3 mb-8 pl-4 border-l-2 border-slate-100">
+                                        <template x-for="opt in currentCard.options" :key="opt.key">
+                                            <div class="flex gap-3 text-slate-600">
+                                                <span class="font-bold text-slate-400" x-text="opt.key + ')'"></span>
+                                                <span x-text="opt.value"></span>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+
+                                <div class="mt-auto pt-8 border-t border-slate-100">
+                                    <div x-show="!showCardAnswer" class="flex justify-center">
+                                        <button @click="showCardAnswer = true"
+                                            class="bg-indigo-600 text-white px-8 py-3 rounded-xl font-semibold shadow-lg shadow-indigo-200 hover:bg-indigo-700 hover:scale-105 transition-all text-lg">
+                                            Show Answer
+                                        </button>
+                                    </div>
+
+                                    <div x-show="showCardAnswer" x-transition.opacity
+                                        class="animate-in fade-in slide-in-from-bottom-4 duration-300">
+                                        <div class="mb-8">
+                                            <span
+                                                class="text-xs font-bold tracking-wider text-green-600 uppercase mb-2 block">Solution</span>
+                                            <div
+                                                class="prose prose-slate max-w-none text-slate-800 bg-green-50 p-6 rounded-xl border border-green-100">
+                                                <p x-text="currentCard.back.solution" class="font-bold mb-2"></p>
+                                                <div x-html="renderMarkdown(currentCard.back.explanation || '')"
+                                                    class="text-sm"></div>
+                                            </div>
+                                        </div>
+
+                                        <div class="flex flex-col items-center gap-4">
+                                            <p class="text-sm text-slate-400 font-medium uppercase tracking-widest">How
+                                                well did you know this?</p>
+                                            <div class="grid grid-cols-3 gap-4 w-full max-w-lg">
+                                                <button @click="rateCard(1)"
+                                                    class="flex flex-col items-center gap-1 p-4 rounded-xl border-2 border-red-100 bg-red-50 hover:bg-red-100 hover:border-red-200 transition-colors text-red-700 group">
+                                                    <span class="text-lg font-bold">Zero</span>
+                                                    <span
+                                                        class="text-xs opacity-60 font-mono group-hover:opacity-100">Press
+                                                        1</span>
+                                                </button>
+                                                <button @click="rateCard(2)"
+                                                    class="flex flex-col items-center gap-1 p-4 rounded-xl border-2 border-amber-100 bg-amber-50 hover:bg-amber-100 hover:border-amber-200 transition-colors text-amber-700 group">
+                                                    <span class="text-lg font-bold">Meh</span>
+                                                    <span
+                                                        class="text-xs opacity-60 font-mono group-hover:opacity-100">Press
+                                                        2</span>
+                                                </button>
+                                                <button @click="rateCard(3)"
+                                                    class="flex flex-col items-center gap-1 p-4 rounded-xl border-2 border-green-100 bg-green-50 hover:bg-green-100 hover:border-green-200 transition-colors text-green-700 group">
+                                                    <span class="text-lg font-bold">A lot</span>
+                                                    <span
+                                                        class="text-xs opacity-60 font-mono group-hover:opacity-100">Press
+                                                        3</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <!-- Scripts -->
-    <script src="db.js"></script>
-    <script src="app.js"></script>
+    <script src="db.js?t=100000"></script>
+    <script src="app.js?t=100000"></script>
 </body>
 
 </html>

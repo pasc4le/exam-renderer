@@ -1,6 +1,6 @@
 // --- IndexedDB Helper ---
 const DB_NAME = 'ExamRendererDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 const openDB = () => {
     return new Promise((resolve, reject) => {
@@ -21,6 +21,11 @@ const openDB = () => {
                 const resultsStore = db.createObjectStore('results', { keyPath: 'id', autoIncrement: true });
                 resultsStore.createIndex('examId', 'examId', { unique: false });
                 resultsStore.createIndex('timestamp', 'timestamp', { unique: false });
+            }
+            if (!db.objectStoreNames.contains('cards')) {
+                const cardsStore = db.createObjectStore('cards', { keyPath: 'id' });
+                cardsStore.createIndex('due', 'due', { unique: false });
+                cardsStore.createIndex('tags', 'tags', { unique: false, multiEntry: true });
             }
         };
 

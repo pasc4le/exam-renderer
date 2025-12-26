@@ -1,5 +1,22 @@
 // --- Chart Helper ---
 let chartInstance = null;
+// --- FSRS Helper ---
+let fsrsLib = null;
+let fsrsInstance = null;
+
+(async function loadFSRS() {
+    try {
+        fsrsLib = await import('https://esm.sh/ts-fsrs@latest');
+        const { FSRS } = fsrsLib;
+        fsrsInstance = new FSRS();
+        console.log("FSRS Library Loaded");
+    } catch (e) {
+        console.error("Failed to load FSRS library", e);
+    }
+})();
+
+
+
 
 document.addEventListener("alpine:init", () => {
     window.Alpine.data("exam", () => ({
@@ -12,6 +29,17 @@ document.addEventListener("alpine:init", () => {
         availableTags: [],
         selectedTag: '',
         currentExamId: null,
+        currentExamHash: null,
+
+        // Cards State
+        availableCardTags: [],
+        selectedCardTag: '',
+        cards: [], // Current study queue
+        currentCardIndex: 0,
+        currentCard: null,
+        showCardAnswer: false,
+        cardsStats: { due: 0, learning: 0, review: 0, total: 0 },
+
 
         // Generate State
         apiKey: localStorage.getItem('exam_renderer_api_key') || '',
@@ -40,6 +68,7 @@ document.addEventListener("alpine:init", () => {
                     const content = JSON.parse(e.target.result);
                     await this.processAndLoadExam(content, Date.now().toString());
                 } catch (err) {
+                    console.error(err);
                     alert("Failed to parse JSON: " + err.message);
                 }
             };
@@ -51,6 +80,7 @@ document.addEventListener("alpine:init", () => {
         },
 
         async processAndLoadExam(content, id) {
+            this.currentExamHash = await this.computeHash(JSON.stringify(content));
             this.data = JSON.parse(JSON.stringify(content)); // Deep copy to avoid reference issues
             this.currentExamId = id;
 
@@ -148,6 +178,53 @@ document.addEventListener("alpine:init", () => {
             };
 
             await dbOp('readwrite', 'results', (store) => store.add(result));
+
+            // Create Cards for Wrong Answers
+            const wrongQuestions = this.data.questions.filter(q => !this.checkAnswer(q));
+            if (wrongQuestions.length > 0) {
+                if (!fsrsLib) {
+                    alert("Flashcard system is still loading, please try again in a moment.");
+                    return;
+                }
+                const { createEmptyCard } = fsrsLib;
+
+                const db = await openDB();
+                const tx = db.transaction('cards', 'readwrite');
+                const store = tx.objectStore('cards');
+
+                for (let i = 0; i < wrongQuestions.length; i++) {
+                    const q = wrongQuestions[i];
+                    // Generate Unique Deterministic ID
+                    const qId = q.id || `idx_${this.data.questions.indexOf(q)}`;
+                    const uniqueCardId = `${this.currentExamHash}_q_${qId}`;
+
+                    // Check if exists
+                    const exists = await new Promise((resolve) => {
+                        const r = store.get(uniqueCardId);
+                        r.onsuccess = () => resolve(r.result);
+                        r.onerror = () => resolve(null);
+                    });
+
+                    if (!exists) {
+                        const card = createEmptyCard(new Date());
+                        const newCard = JSON.parse(JSON.stringify({
+                            ...card,
+                            id: uniqueCardId,
+                            front: q.prompt,
+                            back: q.answer,
+                            options: q.options || [],
+                            tags: this.data.tags || [],
+                            questionId: q.id,
+                            examId: this.currentExamId,
+                            sourceExamHash: this.currentExamHash
+                        }));
+                        store.put(newCard);
+                    }
+                }
+
+                // Refresh cards if viewed
+                this.loadCards();
+            }
 
             alert(`Exam Finished!\nScore: ${score}/${total} (${Math.round(score / total * 100)}%)`);
             this.showAnswers = true;
@@ -390,6 +467,131 @@ The user will provide a topic or description. Ensure valid JSON output. Do not w
             } finally {
                 this.isGenerating = false;
             }
+        },
+
+        async loadCards() {
+            const allCards = await getAllFromIndex('cards', 'due'); // Sorted by due date
+            const now = new Date();
+
+            // Calculate Stats
+            this.cardsStats = {
+                due: 0,
+                learning: 0,
+                review: 0,
+                total: allCards.length
+            };
+
+            // Extract Tags
+            // Extract Tags
+            const tags = new Set();
+            if (fsrsLib) {
+                const { State } = fsrsLib;
+                allCards.forEach(c => {
+                    if (c.due <= now) this.cardsStats.due++;
+                    if (c.state === State.Learning || c.state === State.Relearning) this.cardsStats.learning++;
+                    if (c.state === State.Review) this.cardsStats.review++;
+                    if (c.tags) c.tags.forEach(t => tags.add(t));
+                });
+            } else {
+                allCards.forEach(c => {
+                    // Fallback if lib not loaded (simple count)
+                    if (c.due <= now) this.cardsStats.due++;
+                    if (c.tags) c.tags.forEach(t => tags.add(t));
+                });
+            }
+            this.availableCardTags = Array.from(tags).sort();
+
+
+            // Filter matching tags + Due or Learning
+            // We want cards that are due (due <= now) OR in learning steps (if handled differently, but fsrs 'due' covers it usually)
+            // Ideally we only show cards that are due.
+            let dueCards = allCards.filter(c => new Date(c.due) <= now);
+
+            if (this.selectedCardTag) {
+                dueCards = dueCards.filter(c => c.tags && c.tags.includes(this.selectedCardTag));
+            }
+
+            this.cards = dueCards;
+            this.currentCardIndex = 0;
+            this.currentCard = this.cards[0] || null;
+            this.showCardAnswer = false;
+        },
+
+        async rateCard(ratingValue) {
+            if (!this.currentCard) return;
+            if (!fsrsInstance) { alert("FSRS not loaded"); return; }
+
+            // Rating Map: 1 (Zero/Forgot) -> Again (1), 2 (Meh/Hard) -> Hard (2), 3 (A lot/Good) -> Good (3)
+            // FSRS Ratings: Again=1, Hard=2, Good=3, Easy=4. 
+            // Mapping: 1->1, 2->2, 3->3. We can omit Easy for now or map 3->Easy if very confident? 
+            // Let's stick to 1, 2, 3 maps to 1, 2, 3.
+            const rating = ratingValue;
+
+            // Ensure due date is a Date object (if it was stored as string)
+            const due = new Date(this.currentCard.due);
+            const last_review = this.currentCard.last_review ? new Date(this.currentCard.last_review) : undefined;
+
+            // Reconstruct card for FSRS (it expects specific structure and Date objects)
+            const cardForFsrs = {
+                ...this.currentCard,
+                due: due,
+                last_review: last_review
+            };
+
+            const schedulingCards = fsrsInstance.repeat(cardForFsrs, new Date());
+
+            // schedulingCards is a map of rating -> { card: ..., log: ... }
+            // API might be slightly different depending on version. 
+            // Checking docs pattern or assumption: ts-fsrs usually returns a record/map.
+            // Let's debug if needed, but standard usage:
+            // const s = f.repeat(card, now);
+            // newCard = s[rating].card;
+
+            // However, `window.fsrs` structure might be nested. 
+            // Usually `fsrs.repeat` returns an object where keys are the ratings.
+
+            const schedule = schedulingCards[rating];
+            // Update DB (sanitize again just in case, though usually repeat returns plain objects)
+            const updatedCard = JSON.parse(JSON.stringify({ ...this.currentCard, ...schedule.card }));
+
+            // Update DB
+            await dbOp('readwrite', 'cards', (store) => store.put(updatedCard));
+
+            // Move to next card
+            this.cards.splice(this.currentCardIndex, 1);
+
+            // Update stats locally for immediate feedback? 
+            // Easier to just reload or decrement visually. 
+            // Let's just reset index if needed or pick next.
+            if (this.cards.length > 0) {
+                // Index stays 0 because we removed the current one
+                this.currentCard = this.cards[0];
+                this.showCardAnswer = false;
+            } else {
+                this.currentCard = null;
+                // Maybe refresh stats
+                this.loadCards();
+            }
+        },
+
+        renderMarkdown(text) {
+            const md = window.markdownit();
+            return md.render(text);
+        },
+
+        handleCardKey(e) {
+            if (this.view !== 'cards' || !this.currentCard || !this.showCardAnswer) return;
+            if (e.key === '1') this.rateCard(1);
+            if (e.key === '2') this.rateCard(2);
+            if (e.key === '3') this.rateCard(3);
+        },
+
+        async computeHash(text) {
+            const msgBuffer = new TextEncoder().encode(text);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
         }
     }));
+
 });
