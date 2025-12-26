@@ -51,7 +51,9 @@
                 "properties": {
                   "type": {
                     "type": "string",
-                    "enum": ["tikz"],
+                    "enum": [
+                      "tikz"
+                    ],
                     "description": "The type of rendering modality."
                   },
                   "content": {
@@ -59,34 +61,15 @@
                     "description": "The code to render the diagram."
                   }
                 },
-                "required": ["type", "content"]
+                "required": [
+                  "type",
+                  "content"
+                ]
               }
             },
             "required": [
-              "description",
-              "filename"
+              "description"
             ]
-          },
-          "given": {
-            "type": "array",
-            "description": "An array of key-value pairs for given data and constants.",
-            "items": {
-              "type": "object",
-              "properties": {
-                "key": {
-                  "type": "string",
-                  "description": "The symbol or name of the constant (e.g., 'g')."
-                },
-                "value": {
-                  "type": "string",
-                  "description": "The value of the constant, represented as a string (e.g., '9.8 m/s²')."
-                }
-              },
-              "required": [
-                "key",
-                "value"
-              ]
-            }
           },
           "tasks": {
             "type": "array",
@@ -120,17 +103,18 @@
             "type": "object",
             "description": "Contains the final answer and the detailed solution.",
             "properties": {
-              "final": {
+              "solution": {
                 "type": "string",
                 "description": "The concise, final answer(s), always as an array of strings."
               },
-              "solution": {
+              "explanation": {
                 "type": "string",
                 "description": "A step-by-step explanation, derivation, or justification for the final answer."
               }
             },
             "required": [
-              "solution"
+              "solution",
+              "explanation"
             ]
           }
         },
