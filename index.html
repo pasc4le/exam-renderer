@@ -1,257 +1,207 @@
 <!doctype html>
 <html>
-    <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-        <link
-            href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap"
-            rel="stylesheet"
-        />
 
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Exam Renderer</title>
+<head>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap"
+        rel="stylesheet" />
 
-        <style>
-            html,
-            body,
-            .boxed {
-                width: 100%;
-                font-family: "Poppins", sans-serif;
-            }
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Exam Renderer</title>
 
-            h1,
-            h2,
-            h3,
-            h4 {
-                font-weight: 600;
-                letter-spacing: -0.04em;
-            }
-        </style>
+    <style>
+        html,
+        body,
+        .boxed {
+            width: 100%;
+            font-family: "Poppins", sans-serif;
+        }
 
-        <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-        <script
-            defer
-            src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"
-        ></script>
-        <script
-            src="https://cdn.jsdelivr.net/npm/markdown-it@14.1.0/dist/markdown-it.min.js"
-            integrity="sha256-OMcKHnypGrQOLZ5uYBKYUacX7Rx9Ssu91Bv5UDeRz2g="
-            crossorigin="anonymous"
-        ></script>
-    </head>
-    <body>
-        <div class="max-w-screen-md mx-auto py-6 px-6" x-data="exam">
-            <h1 x-text="data.exam_title" class="text-3xl">Exam</h1>
-            <hr class="my-4 border-slate-200 md:w-4/5" />
-            <div class="mt-2">
-                <div x-show="!loaded">
-                    <label
-                        class="bg-slate-600 px-2 py-1 rounded-md text-white cursor-pointer"
-                        for="file"
-                    >
-                        Click here to load an exam
+        h1,
+        h2,
+        h3,
+        h4 {
+            font-weight: 600;
+            letter-spacing: -0.04em;
+        }
+    </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/markdown-it@14.1.0/dist/markdown-it.min.js"
+        integrity="sha256-OMcKHnypGrQOLZ5uYBKYUacX7Rx9Ssu91Bv5UDeRz2g=" crossorigin="anonymous"></script>
+</head>
+
+<body>
+    <div class="max-w-screen-md mx-auto py-6 px-6" x-data="exam">
+        <h1 x-text="data.exam_title" class="text-3xl">Exam</h1>
+        <hr class="my-4 border-slate-200 md:w-4/5" />
+        <div class="mt-2">
+            <div x-show="!loaded">
+                <label class="bg-slate-600 px-2 py-1 rounded-md text-white cursor-pointer" for="file">
+                    Click here to load an exam
+                </label>
+                <input type="file" @change="loadExam" hidden id="file" name="file" />
+            </div>
+
+            <div x-show="loaded">
+                <div class="mb-2 sticky top-4 z-10">
+                    <label class="bg-slate-100 px-2 py-1 rounded-md cursor-pointer" for="toggleAnswers">
+                        Toggle Answers
                     </label>
-                    <input
-                        type="file"
-                        @change="loadExam"
-                        hidden
-                        id="file"
-                        name="file"
-                    />
+                    <input type="checkbox" @change="toggleAnswers" id="toggleAnswers" name="toggleAnswers" hidden />
+                    <button class="ml-2 px-2 py-1 bg-blue-100 rounded-md cursor-pointer" @click="saveAnswers">
+                        Save Answers
+                    </button>
                 </div>
 
-                <div x-show="loaded">
-                    <div class="mb-2 sticky top-4 z-10">
-                        <label
-                            class="bg-slate-100 px-2 py-1 rounded-md cursor-pointer"
-                            for="toggleAnswers"
-                        >
-                            Toggle Answers
-                        </label>
-                        <input
-                            type="checkbox"
-                            @change="toggleAnswers"
-                            id="toggleAnswers"
-                            name="toggleAnswers"
-                            hidden
-                        />
-                        <button
-                            class="ml-2 px-2 py-1 bg-blue-100 rounded-md cursor-pointer"
-                            @click="saveAnswers"
-                        >
-                            Save Answers
-                        </button>
-                    </div>
+                <template x-for="q in data.questions">
+                    <div class="mt-8">
+                        <p>
+                            <span x-text="q.id" class="text-slate-400 uppercase italic"></span>.<span> </span><span
+                                x-text="q.prompt"></span>
+                        </p>
 
-                    <template x-for="q in data.questions">
-                        <div class="mt-8">
-                            <p>
-                                <span
-                                    x-text="q.id"
-                                    class="text-slate-400 uppercase italic"
-                                ></span
-                                >.<span> </span><span x-text="q.prompt"></span>
+                        <div x-show="q.options" class="mt-2">
+                            <template x-for="e in q.options">
+                                <p>
+                                    <span x-text="e.key"></span>)
+                                    <span x-text="e.value"></span>
+                                </p>
+                            </template>
+                        </div>
+
+                        <div x-show="q.figure" class="mt-2">
+                            <p class="font-medium">Figure Description</p>
+                            <p x-text="q?.figure?.description"></p>
+                            <img x-show="q?.figure?.filename" :src="q?.figure?.filename"
+                                class="mt-2 max-w-full rounded-md border border-slate-200" alt="Figure" />
+                        </div>
+
+                        <div x-show="q.tasks" class="mt-2">
+                            <p class="font-medium">Tasks</p>
+                            <ol>
+                                <template x-for="task in q.tasks">
+                                    <li x-text="task"></li>
+                                </template>
+                            </ol>
+                        </div>
+
+                        <textarea :id="q.id" :value="q.user_answer"
+                            class="border-1 border-slate-200 w-full mt-2 px-2 py-1 rounded-md outline-none print:hidden"
+                            placeholder="Answer"></textarea>
+
+                        <div x-show="showAnswers" class="bg-slate-50 px-2 py-1 rounded-md mt-2">
+                            <p x-show="q.answer.solution">
+                                <span class="font-medium text-slate-500 uppercase tracking-wider">Final</span><br />
+                                <span x-text="q.answer.solution"></span>
                             </p>
 
-                            <div x-show="q.options" class="mt-2">
-                                <template x-for="e in q.options">
-                                    <p>
-                                        <span x-text="e.key"></span>)
-                                        <span x-text="e.value"></span>
-                                    </p>
-                                </template>
-                            </div>
-
-                            <div x-show="q.figure" class="mt-2">
-                                <p class="font-medium">Figure Description</p>
-                                <p x-text="q?.figure?.description"></p>
-                            </div>
-
-                            <div x-show="q.given" class="mt-2">
-                                <p class="font-medium">Data Given</p>
-                                <ul>
-                                    <template x-for="e in q.given">
-                                        <li>
-                                            <span x-text="e.key"></span> =
-                                            <span x-text="e.value"></span>
-                                        </li>
-                                    </template>
-                                </ul>
-                            </div>
-
-                            <div x-show="q.tasks" class="mt-2">
-                                <p class="font-medium">Tasks</p>
-                                <ol>
-                                    <template x-for="task in q.tasks">
-                                        <li x-text="task"></li>
-                                    </template>
-                                </ol>
-                            </div>
-
-                            <textarea
-                                :id="q.id"
-                                :value="q.user_answer"
-                                class="border-1 border-slate-200 w-full mt-2 px-2 py-1 rounded-md outline-none print:hidden"
-                                placeholder="Answer"
-                            ></textarea>
-
-                            <div
-                                x-show="showAnswers"
-                                class="bg-slate-50 px-2 py-1 rounded-md mt-2"
-                            >
-                                <p x-show="q.answer.final">
-                                    <span
-                                        class="font-medium text-slate-500 uppercase tracking-wider"
-                                        >Final</span
-                                    ><br />
-                                    <span x-text="q.answer.final"></span>
-                                </p>
-
-                                <div x-show="q.answer.solution">
-                                    <span
-                                        class="font-medium text-slate-500 uppercase tracking-wider"
-                                        >Solution</span
-                                    >
-                                    <div x-html="q.answer.solution"></div>
-                                </div>
+                            <div x-show="q.answer.explanation">
+                                <span class="font-medium text-slate-500 uppercase tracking-wider">Explanation</span>
+                                <div x-html="q.answer.explanation"></div>
                             </div>
                         </div>
-                    </template>
-                </div>
+                    </div>
+                </template>
             </div>
         </div>
+    </div>
 
-        <script>
-            const readFile = async (file) => {
-                const reader = new FileReader();
+    <script>
+        const readFile = async (file) => {
+            const reader = new FileReader();
 
-                const res = new Promise((res) => {
-                    reader.addEventListener("load", (e) =>
-                        res(e.target.result),
+            const res = new Promise((res) => {
+                reader.addEventListener("load", (e) =>
+                    res(e.target.result),
+                );
+            });
+
+            reader.readAsText(file);
+
+            return res;
+        };
+
+        document.addEventListener("alpine:init", () => {
+            window.Alpine.data("exam", () => ({
+                data: {
+                    exam_title: "Exam",
+                    sections: [{ title: "brutto" }],
+                },
+                loaded: false,
+                showAnswers: false,
+
+                async loadExam(e) {
+                    const doc = e.target.files[0];
+                    const res = await readFile(doc);
+                    this.data = JSON.parse(res);
+
+                    const md = markdownit();
+
+                    this.data.questions = this.data.questions.map((q) => {
+                        if (q?.answer?.explanation)
+                            q.answer.explanation = md.render(
+                                q.answer.explanation,
+                            );
+
+                        return q;
+                    });
+
+                    this.loaded = true;
+                },
+
+                toggleAnswers(e) {
+                    this.showAnswers = e.target.checked;
+                },
+
+                saveAnswers() {
+                    const answersBoxes =
+                        document.querySelectorAll("textarea");
+
+                    const answers = Object.fromEntries(
+                        Array.from(answersBoxes).map((e) => [
+                            e.id,
+                            e.value,
+                        ]),
                     );
-                });
 
-                reader.readAsText(file);
+                    const examWithAnswers = JSON.parse(
+                        JSON.stringify(this.data),
+                    );
 
-                return res;
-            };
-
-            document.addEventListener("alpine:init", () => {
-                window.Alpine.data("exam", () => ({
-                    data: {
-                        exam_title: "Exam",
-                        sections: [{ title: "brutto" }],
-                    },
-                    loaded: false,
-                    showAnswers: false,
-
-                    async loadExam(e) {
-                        const doc = e.target.files[0];
-                        const res = await readFile(doc);
-                        this.data = JSON.parse(res);
-
-                        const md = markdownit();
-
-                        this.data.questions = this.data.questions.map((q) => {
-                            if (q?.answer?.solution)
-                                q.answer.solution = md.render(
-                                    q.answer.solution,
-                                );
+                    examWithAnswers.questions =
+                        examWithAnswers.questions.map((q) => {
+                            q["user_answer"] = answers[q.id];
 
                             return q;
                         });
 
-                        this.loaded = true;
-                    },
+                    const blob = new Blob(
+                        [JSON.stringify(examWithAnswers, null, 2)],
+                        {
+                            type: "octet/stream",
+                        },
+                    );
 
-                    toggleAnswers(e) {
-                        this.showAnswers = e.target.checked;
-                    },
+                    const url = URL.createObjectURL(blob);
 
-                    saveAnswers() {
-                        const answersBoxes =
-                            document.querySelectorAll("textarea");
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.style = "display: hidden";
+                    a.download = this.data.exam_title + "_answers.json";
 
-                        const answers = Object.fromEntries(
-                            Array.from(answersBoxes).map((e) => [
-                                e.id,
-                                e.value,
-                            ]),
-                        );
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
 
-                        const examWithAnswers = JSON.parse(
-                            JSON.stringify(this.data),
-                        );
+                    URL.revokeObjectURL(url);
+                },
+            }));
+        });
+    </script>
+</body>
 
-                        examWithAnswers.questions =
-                            examWithAnswers.questions.map((q) => {
-                                q["user_answer"] = answers[q.id];
-
-                                return q;
-                            });
-
-                        const blob = new Blob(
-                            [JSON.stringify(examWithAnswers, null, 2)],
-                            {
-                                type: "octet/stream",
-                            },
-                        );
-
-                        const url = URL.createObjectURL(blob);
-
-                        const a = document.createElement("a");
-                        a.href = url;
-                        a.style = "display: hidden";
-                        a.download = this.data.exam_title + "_answers.json";
-
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-
-                        URL.revokeObjectURL(url);
-                    },
-                }));
-            });
-        </script>
-    </body>
 </html>
