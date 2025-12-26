@@ -58,6 +58,40 @@ document.addEventListener("alpine:init", () => {
         selectedModel: "models/gemini-1.5-flash",
         isFetchingModels: false,
 
+        // Dark Mode State
+        darkMode: false,
+
+        async initApp() {
+            // Initialize Dark Mode
+            const savedTheme = localStorage.getItem('theme');
+            const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+            if (savedTheme === 'dark' || (!savedTheme && systemDark)) {
+                this.darkMode = true;
+                document.documentElement.classList.add('dark');
+            } else {
+                this.darkMode = false;
+                document.documentElement.classList.remove('dark');
+            }
+
+            // Initialize DB
+            await this.initDB();
+        },
+
+        toggleDarkMode() {
+            this.darkMode = !this.darkMode;
+            if (this.darkMode) {
+                document.documentElement.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+            }
+            if (this.view === 'stats') {
+                setTimeout(() => this.updateChart(), 0);
+            }
+        },
+
         async initDB() {
             try {
                 this.recentExams = await getAllFromIndex('exams', 'lastOpened');
@@ -273,7 +307,8 @@ document.addEventListener("alpine:init", () => {
             const labels = filteredResults.map(r => new Date(r.timestamp).toLocaleDateString());
             const dataPoints = filteredResults.map(r => (r.score / r.total) * 100);
 
-
+            const textColor = this.darkMode ? '#cbd5e1' : '#64748b'; // slate-300 vs slate-500
+            const gridColor = this.darkMode ? '#334155' : '#e2e8f0'; // slate-700 vs slate-200
 
             if (chartInstance) {
                 chartInstance.destroy();
@@ -303,13 +338,25 @@ document.addEventListener("alpine:init", () => {
                         mode: 'index',
                     },
                     scales: {
+                        x: {
+                            ticks: { color: textColor },
+                            grid: { color: gridColor }
+                        },
                         y: {
                             beginAtZero: true,
                             max: 100,
                             title: {
                                 display: true,
-                                text: 'Score (%)'
-                            }
+                                text: 'Score (%)',
+                                color: textColor
+                            },
+                            ticks: { color: textColor },
+                            grid: { color: gridColor }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            labels: { color: textColor }
                         }
                     }
                 }
