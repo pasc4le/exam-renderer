@@ -51,6 +51,11 @@ document.addEventListener("alpine:init", () => {
         isGenerating: false,
         generationError: null,
         attachedFiles: [],
+        availableModels: [
+            { name: "models/gemini-1.5-flash", displayName: "Gemini 1.5 Flash" }
+        ],
+        selectedModel: "models/gemini-1.5-flash",
+        isFetchingModels: false,
 
         async initDB() {
             try {
@@ -390,219 +395,256 @@ document.addEventListener("alpine:init", () => {
             return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
         },
 
-        async generateExam() {
-            if (!this.apiKey) {
-                this.showApiKeyModal = true;
+        openConfig() {
+            this.tempApiKey = this.apiKey;
+            this.showApiKeyModal = true;
+        },
+
+        async fetchModels() {
+            const keyToUse = this.tempApiKey || this.apiKey;
+            if (!keyToUse) {
+                alert("Please enter an API Key first.");
                 return;
             }
-
-            this.isGenerating = true;
-            this.generationError = null;
-
+            this.isFetchingModels = true;
             try {
-                // Fetch schema
-                const schemaResponse = await fetch('schema.json');
-                if (!schemaResponse.ok) throw new Error("Failed to load schema template");
-                const schema = await schemaResponse.json();
-
-                const systemInstruction = `You are an expert exam creator. Generate a JSON exam strictly following the provided schema. 
-The user will provide a topic or description. Ensure valid JSON output. Do not wrap in markdown code blocks.`;
-
-                const prompt = `Generate a valid JSON exam based on this schema: ${JSON.stringify(schema)}\n\nTopic/Description: ${this.generatePrompt}`;
-
-                // Prepare content parts
-                const contentParts = [{ text: prompt }];
-
-                // attach inline data
-                this.attachedFiles.forEach(f => {
-                    contentParts.push({
-                        inline_data: {
-                            mime_type: f.type,
-                            data: f.base64
-                        }
-                    });
-                });
-
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${this.apiKey}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        contents: [{
-                            parts: contentParts
-                        }],
-                        systemInstruction: {
-                            parts: [{ text: systemInstruction }]
-                        },
-                        generationConfig: {
-                            response_mime_type: "application/json"
-                        }
-                    })
-                });
-
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error?.message || "API Request Failed");
-                }
-
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${keyToUse}`);
+                if (!response.ok) throw new Error("Failed to fetch models: " + response.statusText);
                 const data = await response.json();
-                const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
-                if (!generatedText) throw new Error("No content generated");
-
-                let parsedExam;
-                try {
-                    parsedExam = JSON.parse(generatedText);
-                } catch (e) {
-                    // Try to clean markdown code blocks if present (though response_mime_type should handle it)
-                    const cleanText = generatedText.replace(/```json\n|\n```|```/g, "");
-                    parsedExam = JSON.parse(cleanText);
+                if (data.models) {
+                    // Filter for models that support generateContent
+                    this.availableModels = data.models.filter(m =>
+                        m.supportedGenerationMethods && m.supportedGenerationMethods.includes("generateContent")
+                    );
+                } else {
+                    throw new Error("No models found in response");
                 }
-
-                // Load the exam
-                await this.processAndLoadExam(parsedExam, "gen_" + Date.now().toString());
 
             } catch (e) {
-                console.error("Generation failed", e);
-                this.generationError = e.message;
+                console.error("Fetch models failed", e);
+                alert("Failed to fetch models: " + e.message);
             } finally {
-                this.isGenerating = false;
+                this.isFetchingModels = false;
             }
         },
+
+        async generateExam() {
+    if (!this.apiKey) {
+        this.showApiKeyModal = true;
+        return;
+    }
+
+    this.isGenerating = true;
+    this.generationError = null;
+
+    try {
+        // Fetch schema
+        const schemaResponse = await fetch('schema.json');
+        if (!schemaResponse.ok) throw new Error("Failed to load schema template");
+        const schema = await schemaResponse.json();
+
+        const systemInstruction = `You are an expert exam creator. Generate a JSON exam strictly following the provided schema. 
+The user will provide a topic or description. Ensure valid JSON output. Do not wrap in markdown code blocks.`;
+
+        const prompt = `Generate a valid JSON exam based on this schema: ${JSON.stringify(schema)}\n\nTopic/Description: ${this.generatePrompt}`;
+
+        // Prepare content parts
+        const contentParts = [{ text: prompt }];
+
+        // attach inline data
+        this.attachedFiles.forEach(f => {
+            contentParts.push({
+                inline_data: {
+                    mime_type: f.type,
+                    data: f.base64
+                }
+            });
+        });
+
+        // Use selected model, default to gemini-1.5-flash if somehow empty
+        const modelName = this.selectedModel || "models/gemini-1.5-flash";
+
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/${modelName}:generateContent?key=${this.apiKey}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                contents: [{
+                    parts: contentParts
+                }],
+                systemInstruction: {
+                    parts: [{ text: systemInstruction }]
+                },
+                generationConfig: {
+                    response_mime_type: "application/json"
+                }
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error?.message || "API Request Failed");
+        }
+
+        const data = await response.json();
+        const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+        if (!generatedText) throw new Error("No content generated");
+
+        let parsedExam;
+        try {
+            parsedExam = JSON.parse(generatedText);
+        } catch (e) {
+            // Try to clean markdown code blocks if present (though response_mime_type should handle it)
+            const cleanText = generatedText.replace(/```json\n|\n```|```/g, "");
+            parsedExam = JSON.parse(cleanText);
+        }
+
+        // Load the exam
+        await this.processAndLoadExam(parsedExam, "gen_" + Date.now().toString());
+
+    } catch (e) {
+        console.error("Generation failed", e);
+        this.generationError = e.message;
+    } finally {
+        this.isGenerating = false;
+    }
+},
 
         async loadCards() {
-            const allCards = await getAllFromIndex('cards', 'due'); // Sorted by due date
-            const now = new Date();
+    const allCards = await getAllFromIndex('cards', 'due'); // Sorted by due date
+    const now = new Date();
 
-            // Calculate Stats
-            this.cardsStats = {
-                due: 0,
-                learning: 0,
-                review: 0,
-                total: allCards.length
-            };
+    // Calculate Stats
+    this.cardsStats = {
+        due: 0,
+        learning: 0,
+        review: 0,
+        total: allCards.length
+    };
 
-            // Extract Tags
-            // Extract Tags
-            const tags = new Set();
-            if (fsrsLib) {
-                const { State } = fsrsLib;
-                allCards.forEach(c => {
-                    if (c.due <= now) this.cardsStats.due++;
-                    if (c.state === State.Learning || c.state === State.Relearning) this.cardsStats.learning++;
-                    if (c.state === State.Review) this.cardsStats.review++;
-                    if (c.tags) c.tags.forEach(t => tags.add(t));
-                });
-            } else {
-                allCards.forEach(c => {
-                    // Fallback if lib not loaded (simple count)
-                    if (c.due <= now) this.cardsStats.due++;
-                    if (c.tags) c.tags.forEach(t => tags.add(t));
-                });
-            }
-            this.availableCardTags = Array.from(tags).sort();
+    // Extract Tags
+    // Extract Tags
+    const tags = new Set();
+    if (fsrsLib) {
+        const { State } = fsrsLib;
+        allCards.forEach(c => {
+            if (c.due <= now) this.cardsStats.due++;
+            if (c.state === State.Learning || c.state === State.Relearning) this.cardsStats.learning++;
+            if (c.state === State.Review) this.cardsStats.review++;
+            if (c.tags) c.tags.forEach(t => tags.add(t));
+        });
+    } else {
+        allCards.forEach(c => {
+            // Fallback if lib not loaded (simple count)
+            if (c.due <= now) this.cardsStats.due++;
+            if (c.tags) c.tags.forEach(t => tags.add(t));
+        });
+    }
+    this.availableCardTags = Array.from(tags).sort();
 
 
-            // Filter matching tags + Due or Learning
-            // We want cards that are due (due <= now) OR in learning steps (if handled differently, but fsrs 'due' covers it usually)
-            // Ideally we only show cards that are due.
-            let dueCards = allCards.filter(c => new Date(c.due) <= now);
+    // Filter matching tags + Due or Learning
+    // We want cards that are due (due <= now) OR in learning steps (if handled differently, but fsrs 'due' covers it usually)
+    // Ideally we only show cards that are due.
+    let dueCards = allCards.filter(c => new Date(c.due) <= now);
 
-            if (this.selectedCardTag) {
-                dueCards = dueCards.filter(c => c.tags && c.tags.includes(this.selectedCardTag));
-            }
+    if (this.selectedCardTag) {
+        dueCards = dueCards.filter(c => c.tags && c.tags.includes(this.selectedCardTag));
+    }
 
-            this.cards = dueCards;
-            this.currentCardIndex = 0;
-            this.currentCard = this.cards[0] || null;
-            this.showCardAnswer = false;
-        },
+    this.cards = dueCards;
+    this.currentCardIndex = 0;
+    this.currentCard = this.cards[0] || null;
+    this.showCardAnswer = false;
+},
 
         async rateCard(ratingValue) {
-            if (!this.currentCard) return;
-            if (!fsrsInstance) { alert("FSRS not loaded"); return; }
+    if (!this.currentCard) return;
+    if (!fsrsInstance) { alert("FSRS not loaded"); return; }
 
-            // Rating Map: 1 (Zero/Forgot) -> Again (1), 2 (Meh/Hard) -> Hard (2), 3 (A lot/Good) -> Good (3)
-            // FSRS Ratings: Again=1, Hard=2, Good=3, Easy=4. 
-            // Mapping: 1->1, 2->2, 3->3. We can omit Easy for now or map 3->Easy if very confident? 
-            // Let's stick to 1, 2, 3 maps to 1, 2, 3.
-            const rating = ratingValue;
+    // Rating Map: 1 (Zero/Forgot) -> Again (1), 2 (Meh/Hard) -> Hard (2), 3 (A lot/Good) -> Good (3)
+    // FSRS Ratings: Again=1, Hard=2, Good=3, Easy=4. 
+    // Mapping: 1->1, 2->2, 3->3. We can omit Easy for now or map 3->Easy if very confident? 
+    // Let's stick to 1, 2, 3 maps to 1, 2, 3.
+    const rating = ratingValue;
 
-            // Ensure due date is a Date object (if it was stored as string)
-            const due = new Date(this.currentCard.due);
-            const last_review = this.currentCard.last_review ? new Date(this.currentCard.last_review) : undefined;
+    // Ensure due date is a Date object (if it was stored as string)
+    const due = new Date(this.currentCard.due);
+    const last_review = this.currentCard.last_review ? new Date(this.currentCard.last_review) : undefined;
 
-            // Reconstruct card for FSRS (it expects specific structure and Date objects)
-            const cardForFsrs = {
-                ...this.currentCard,
-                due: due,
-                last_review: last_review
-            };
+    // Reconstruct card for FSRS (it expects specific structure and Date objects)
+    const cardForFsrs = {
+        ...this.currentCard,
+        due: due,
+        last_review: last_review
+    };
 
-            const schedulingCards = fsrsInstance.repeat(cardForFsrs, new Date());
+    const schedulingCards = fsrsInstance.repeat(cardForFsrs, new Date());
 
-            // schedulingCards is a map of rating -> { card: ..., log: ... }
-            // API might be slightly different depending on version. 
-            // Checking docs pattern or assumption: ts-fsrs usually returns a record/map.
-            // Let's debug if needed, but standard usage:
-            // const s = f.repeat(card, now);
-            // newCard = s[rating].card;
+    // schedulingCards is a map of rating -> { card: ..., log: ... }
+    // API might be slightly different depending on version. 
+    // Checking docs pattern or assumption: ts-fsrs usually returns a record/map.
+    // Let's debug if needed, but standard usage:
+    // const s = f.repeat(card, now);
+    // newCard = s[rating].card;
 
-            // However, `window.fsrs` structure might be nested. 
-            // Usually `fsrs.repeat` returns an object where keys are the ratings.
+    // However, `window.fsrs` structure might be nested. 
+    // Usually `fsrs.repeat` returns an object where keys are the ratings.
 
-            const schedule = schedulingCards[rating];
-            // Update DB (sanitize again just in case, though usually repeat returns plain objects)
-            const updatedCard = JSON.parse(JSON.stringify({ ...this.currentCard, ...schedule.card }));
+    const schedule = schedulingCards[rating];
+    // Update DB (sanitize again just in case, though usually repeat returns plain objects)
+    const updatedCard = JSON.parse(JSON.stringify({ ...this.currentCard, ...schedule.card }));
 
-            // Update DB
-            await dbOp('readwrite', 'cards', (store) => store.put(updatedCard));
+    // Update DB
+    await dbOp('readwrite', 'cards', (store) => store.put(updatedCard));
 
-            // Move to next card
-            this.cards.splice(this.currentCardIndex, 1);
+    // Move to next card
+    this.cards.splice(this.currentCardIndex, 1);
 
-            // Update stats locally for immediate feedback? 
-            // Easier to just reload or decrement visually. 
-            // Let's just reset index if needed or pick next.
-            if (this.cards.length > 0) {
-                // Index stays 0 because we removed the current one
-                this.currentCard = this.cards[0];
-                this.showCardAnswer = false;
-            } else {
-                this.currentCard = null;
-                // Maybe refresh stats
-                this.loadCards();
-            }
-        },
+    // Update stats locally for immediate feedback? 
+    // Easier to just reload or decrement visually. 
+    // Let's just reset index if needed or pick next.
+    if (this.cards.length > 0) {
+        // Index stays 0 because we removed the current one
+        this.currentCard = this.cards[0];
+        this.showCardAnswer = false;
+    } else {
+        this.currentCard = null;
+        // Maybe refresh stats
+        this.loadCards();
+    }
+},
 
-        renderMarkdown(text) {
-            const md = window.markdownit({ html: true });
-            return md.render(text);
-        },
+renderMarkdown(text) {
+    const md = window.markdownit({ html: true });
+    return md.render(text);
+},
 
-        handleCardKey(e) {
-            if (this.view !== 'cards' || !this.currentCard) return;
+handleCardKey(e) {
+    if (this.view !== 'cards' || !this.currentCard) return;
 
-            if (!this.showCardAnswer) {
-                if (e.code === 'Space' || e.key === ' ') {
-                    e.preventDefault();
-                    this.showCardAnswer = true;
-                }
-                return;
-            }
+    if (!this.showCardAnswer) {
+        if (e.code === 'Space' || e.key === ' ') {
+            e.preventDefault();
+            this.showCardAnswer = true;
+        }
+        return;
+    }
 
-            if (e.key === '1') this.rateCard(1);
-            if (e.key === '2') this.rateCard(2);
-            if (e.key === '3') this.rateCard(3);
-        },
+    if (e.key === '1') this.rateCard(1);
+    if (e.key === '2') this.rateCard(2);
+    if (e.key === '3') this.rateCard(3);
+},
 
         async computeHash(text) {
-            const msgBuffer = new TextEncoder().encode(text);
-            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-        },
+    const msgBuffer = new TextEncoder().encode(text);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+},
 
 
 
