@@ -1,6 +1,6 @@
 {
-  "name": "ANDROID SPLASH",
-  "short_name": "ANDROID APP ICON",
+  "name": "Exam Renderer",
+  "short_name": "Exam",
   "icons": [
     {
       "src": "/web-app-manifest-192x192.png",
