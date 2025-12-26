@@ -7,6 +7,13 @@
       "description": "The official title of the exam.",
       "example": "General Physics I Final Exam"
     },
+    "tags": {
+      "type": "array",
+      "description": "The tags associated with the exam.",
+      "items": {
+        "type": "string"
+      }
+    },
     "questions": {
       "type": "array",
       "description": "An array containing all the questions and problems for the exam.",
@@ -105,7 +112,7 @@
             "properties": {
               "solution": {
                 "type": "string",
-                "description": "The concise, final answer(s), always as an array of strings."
+                "description": "The concise, final answer. If multiple-choice question, should be the exact id of the right option."
               },
               "explanation": {
                 "type": "string",
@@ -130,6 +137,7 @@
   },
   "required": [
     "exam_title",
+    "tags",
     "questions"
   ]
 }
