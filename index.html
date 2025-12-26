@@ -33,9 +33,22 @@
     <script src="https://cdn.jsdelivr.net/npm/markdown-it@14.1.0/dist/markdown-it.min.js"
         integrity="sha256-OMcKHnypGrQOLZ5uYBKYUacX7Rx9Ssu91Bv5UDeRz2g=" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => {
+                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('ServiceWorker registration failed: ', error);
+                    });
+            });
+        }
+    </script>
 </head>
 
-<body class="text-slate-800 bg-slate-50 dark:bg-slate-900 dark:text-slate-100 transition-colors duration-300">
+<body class="text-slate-800 bg-slate-50 dark:bg-slate-950 dark:text-slate-100 transition-colors duration-300">
     <div class="max-w-screen-lg mx-auto py-8 px-6" x-data="exam" x-init="initApp()">
 
         <!-- Header & Nav -->
@@ -46,22 +59,22 @@
             </h1>
 
             <nav
-                class="flex gap-2 p-1 bg-white dark:bg-slate-800 dark:border-slate-700 rounded-xl shadow-sm border border-slate-200 transition-colors">
+                class="flex flex-wrap gap-2 p-1 bg-white dark:bg-slate-800 dark:border-slate-700 rounded-xl shadow-sm border border-slate-200 transition-colors">
                 <button @click="view = 'load'"
                     :class="view === 'load' ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 font-medium' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'"
-                    class="px-4 py-2 rounded-lg transition-colors text-sm cursor-pointer">Load</button>
+                    class="flex-1 md:flex-none px-4 py-2 rounded-lg transition-colors text-sm cursor-pointer whitespace-nowrap">Load</button>
                 <button @click="switchToGenerate()"
                     :class="view === 'generate' ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 font-medium' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'"
-                    class="px-4 py-2 rounded-lg transition-colors text-sm cursor-pointer">Generate</button>
+                    class="flex-1 md:flex-none px-4 py-2 rounded-lg transition-colors text-sm cursor-pointer whitespace-nowrap">Generate</button>
                 <button @click="view = 'exam'" :disabled="!loaded"
                     :class="view === 'exam' ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 font-medium' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed'"
-                    class="px-4 py-2 rounded-lg transition-colors text-sm cursor-pointer">Exam</button>
+                    class="flex-1 md:flex-none px-4 py-2 rounded-lg transition-colors text-sm cursor-pointer whitespace-nowrap">Exam</button>
                 <button @click="loadStats(); view = 'stats'"
                     :class="view === 'stats' ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 font-medium' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'"
-                    class="px-4 py-2 rounded-lg transition-colors text-sm cursor-pointer">Statistics</button>
+                    class="flex-1 md:flex-none px-4 py-2 rounded-lg transition-colors text-sm cursor-pointer whitespace-nowrap">Statistics</button>
                 <button @click="loadCards(); view = 'cards'"
                     :class="view === 'cards' ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 font-medium' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'"
-                    class="px-4 py-2 rounded-lg transition-colors text-sm cursor-pointer relative">
+                    class="flex-1 md:flex-none px-4 py-2 rounded-lg transition-colors text-sm cursor-pointer relative whitespace-nowrap">
                     Cards
                     <span x-show="cardsStats.due > 0" x-text="cardsStats.due"
                         class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full"></span>
@@ -586,17 +599,17 @@
                 <!-- Control Bar -->
                 <!-- Control Bar -->
                 <div
-                    class="flex items-center justify-between mb-6 bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 transition-colors">
-                    <h2 class="text-xl font-bold text-slate-800 dark:text-slate-100">Flashcards</h2>
-                    <div class="flex gap-3">
+                    class="flex flex-col md:flex-row items-center justify-between gap-4 mb-6 bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 transition-colors">
+                    <h2 class="text-xl font-bold text-slate-800 dark:text-slate-100 w-full md:w-auto text-center md:text-left">Flashcards</h2>
+                    <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto items-center justify-center">
                         <a href="manage_cards.html"
-                            class="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg transition-colors inline-flex items-center justify-center no-underline">
+                            class="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg transition-colors inline-flex items-center justify-center no-underline w-full sm:w-auto">
                             Manage Cards
                         </a>
-                        <div class="flex items-center gap-2">
-                            <span class="text-sm text-slate-500 dark:text-slate-400">Filter:</span>
+                        <div class="flex items-center gap-2 w-full sm:w-auto justify-center">
+                            <span class="text-sm text-slate-500 dark:text-slate-400 whitespace-nowrap">Filter:</span>
                             <select x-model="selectedCardTag" @change="loadCards"
-                                class="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 shadow-sm transition-colors">
+                                class="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 shadow-sm transition-colors w-full sm:w-auto">
                                 <option value="">All Tags</option>
                                 <template x-for="tag in availableCardTags" :key="tag">
                                     <option :value="tag" x-text="tag"></option>
@@ -637,11 +650,11 @@
                                     :style="'width: ' + ((currentCardIndex + 1) / cards.length * 100) + '%'"></div>
                             </div>
 
-                            <div class="p-8 flex-1 flex flex-col">
-                                <div class="flex justify-between items-start mb-6">
+                            <div class="p-4 md:p-8 flex-1 flex flex-col">
+                                <div class="flex justify-between items-start mb-6 gap-4">
                                     <span
-                                        class="text-xs font-bold tracking-wider text-slate-400 uppercase">Question</span>
-                                    <div class="flex gap-2">
+                                        class="text-xs font-bold tracking-wider text-slate-400 uppercase shrink-0">Question</span>
+                                    <div class="flex gap-2 flex-wrap justify-end">
                                         <template x-for="tag in currentCard.tags">
                                             <span
                                                 class="text-[10px] uppercase font-bold bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 px-2 py-1 rounded-md"
