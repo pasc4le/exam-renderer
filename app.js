@@ -40,6 +40,8 @@ document.addEventListener("alpine:init", () => {
         showCardAnswer: false,
         cardsStats: { due: 0, learning: 0, review: 0, total: 0 },
 
+        // Card Manager State (Removed - moved to manage_cards.js)
+
 
         // Generate State
         apiKey: localStorage.getItem('exam_renderer_api_key') || '',
@@ -85,7 +87,7 @@ document.addEventListener("alpine:init", () => {
             this.currentExamId = id;
 
             // Render MD
-            const md = window.markdownit();
+            const md = window.markdownit({ html: true });
             this.data.questions = this.data.questions.map((q) => {
                 if (q?.answer?.explanation) {
                     q.answer.explanation = md.render(q.answer.explanation);
@@ -575,12 +577,21 @@ The user will provide a topic or description. Ensure valid JSON output. Do not w
         },
 
         renderMarkdown(text) {
-            const md = window.markdownit();
+            const md = window.markdownit({ html: true });
             return md.render(text);
         },
 
         handleCardKey(e) {
-            if (this.view !== 'cards' || !this.currentCard || !this.showCardAnswer) return;
+            if (this.view !== 'cards' || !this.currentCard) return;
+
+            if (!this.showCardAnswer) {
+                if (e.code === 'Space' || e.key === ' ') {
+                    e.preventDefault();
+                    this.showCardAnswer = true;
+                }
+                return;
+            }
+
             if (e.key === '1') this.rateCard(1);
             if (e.key === '2') this.rateCard(2);
             if (e.key === '3') this.rateCard(3);
@@ -591,7 +602,11 @@ The user will provide a topic or description. Ensure valid JSON output. Do not w
             const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
             const hashArray = Array.from(new Uint8Array(hashBuffer));
             return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-        }
+        },
+
+
+
+
     }));
 
 });

@@ -494,15 +494,26 @@
                 </div>
 
                 <!-- Control Bar -->
-                <div class="flex items-center justify-between mb-6">
-                    <h2 class="text-2xl font-bold text-slate-800">Flashcards</h2>
-                    <select x-model="selectedCardTag" @change="loadCards"
-                        class="bg-white border border-slate-300 text-slate-700 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 shadow-sm">
-                        <option value="">All Tags</option>
-                        <template x-for="tag in availableCardTags" :key="tag">
-                            <option :value="tag" x-text="tag"></option>
-                        </template>
-                    </select>
+                <!-- Control Bar -->
+                <div
+                    class="flex items-center justify-between mb-6 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                    <h2 class="text-xl font-bold text-slate-800">Flashcards</h2>
+                    <div class="flex gap-3">
+                        <a href="manage_cards.html"
+                            class="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors inline-flex items-center justify-center no-underline">
+                            Manage Cards
+                        </a>
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm text-slate-500">Filter:</span>
+                            <select x-model="selectedCardTag" @change="loadCards"
+                                class="bg-white border border-slate-300 text-slate-700 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 shadow-sm">
+                                <option value="">All Tags</option>
+                                <template x-for="tag in availableCardTags" :key="tag">
+                                    <option :value="tag" x-text="tag"></option>
+                                </template>
+                            </select>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Study Area -->
@@ -621,6 +632,10 @@
                 </div>
             </div>
         </div>
+
+    </div>
+
+
 
     </div>
 

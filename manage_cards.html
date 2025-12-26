@@ -1,0 +1,176 @@
+<!doctype html>
+<html>
+
+<head>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet" />
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Manage Cards - Exam Renderer</title>
+    <link rel="icon" type="image/png" href="favicon.png" />
+
+    <style>
+        html,
+        body {
+            width: 100%;
+            font-family: "Outfit", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        [x-cloak] {
+            display: none !important;
+        }
+    </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
+</head>
+
+<body class="text-slate-800">
+    <div class="max-w-screen-xl mx-auto py-8 px-6" x-data="cardManager" x-init="init()">
+
+        <!-- Header -->
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+            <div class="flex items-center gap-4">
+                <a href="index.html"
+                    class="p-2 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 text-slate-500 transition-colors shadow-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="m15 18-6-6 6-6" />
+                    </svg>
+                </a>
+                <h1 class="text-3xl font-bold text-slate-800">
+                    Manage Cards
+                </h1>
+            </div>
+
+            <div class="flex gap-2">
+                <select x-model="managerSelectedTag" @change="loadManagerCards"
+                    class="bg-white border border-slate-300 text-slate-700 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 shadow-sm min-w-[150px]">
+                    <option value="">All Tags</option>
+                    <template x-for="tag in availableCardTags" :key="tag">
+                        <option :value="tag" x-text="tag"></option>
+                    </template>
+                </select>
+                <div class="flex gap-2">
+                    <button @click="deleteSelectedCards()" :disabled="managerSelectedIds.length === 0"
+                        class="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors shadow-sm shadow-red-200">
+                        Delete Selected
+                    </button>
+                    <button @click="deleteAllCards()"
+                        class="px-4 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors border border-red-100">
+                        Delete All
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Content -->
+        <div class="bg-white rounded-2xl shadow-xl border border-slate-200/60 overflow-hidden">
+            <div class="p-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                <p class="text-sm text-slate-500 font-medium" x-text="`${managerCards.length} cards found`"></p>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left text-slate-600">
+                    <thead class="text-xs text-slate-700 uppercase bg-slate-50 border-b border-slate-200">
+                        <tr>
+                            <th scope="col" class="p-4 w-4">
+                                <div class="flex items-center">
+                                    <input type="checkbox" x-model="selectAllManager" @change="toggleAllManager"
+                                        class="w-4 h-4 text-indigo-600 bg-slate-100 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer">
+                                </div>
+                            </th>
+                            <th scope="col" class="px-6 py-3 w-1/3">Front</th>
+                            <th scope="col" class="px-6 py-3 w-1/3">Back</th>
+                            <th scope="col" class="px-6 py-3">Tags</th>
+                            <th scope="col" class="px-6 py-3">Due</th>
+                            <th scope="col" class="px-6 py-3">State</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        <template x-for="card in managerCards" :key="card.id">
+                            <tr class="hover:bg-slate-50 transition-colors group">
+                                <td class="w-4 p-4">
+                                    <div class="flex items-center">
+                                        <input type="checkbox" :value="card.id" x-model="managerSelectedIds"
+                                            class="w-4 h-4 text-indigo-600 bg-slate-100 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer">
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <div class="line-clamp-2 font-medium text-slate-900" x-text="card.front"
+                                        :title="card.front"></div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <div class="line-clamp-2 text-slate-600"
+                                        x-text="typeof card.back === 'string' ? card.back : (card.back?.solution ? (Array.isArray(card.back.solution) ? card.back.solution.join(', ') : card.back.solution) : JSON.stringify(card.back))"
+                                        :title="typeof card.back === 'string' ? card.back : (card.back?.solution ? (Array.isArray(card.back.solution) ? card.back.solution.join(', ') : card.back.solution) : JSON.stringify(card.back))">
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <div class="flex gap-1 flex-wrap">
+                                        <template x-for="tag in (card.tags || [])">
+                                            <span
+                                                class="bg-indigo-50 text-indigo-600 text-[10px] uppercase font-bold px-2 py-1 rounded-md border border-indigo-100"
+                                                x-text="tag"></span>
+                                        </template>
+                                        <template x-if="!card.tags || card.tags.length === 0">
+                                            <span class="text-slate-400 text-xs italic">No tags</span>
+                                        </template>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span x-text="new Date(card.due).toLocaleDateString()"
+                                        class="font-mono text-xs"></span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span x-show="card.state === 0"
+                                        class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
+                                        New
+                                    </span>
+                                    <span x-show="card.state === 1"
+                                        class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-100">
+                                        Learning
+                                    </span>
+                                    <span x-show="card.state === 2"
+                                        class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-100">
+                                        Review
+                                    </span>
+                                    <span x-show="card.state === 3"
+                                        class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                                        Relearning
+                                    </span>
+                                </td>
+                            </tr>
+                        </template>
+                        <tr x-show="managerCards.length === 0">
+                            <td colspan="6" class="px-6 py-12 text-center text-slate-400 bg-slate-50/50">
+                                <div class="flex flex-col items-center justify-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                        stroke-linejoin="round" class="opacity-50">
+                                        <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
+                                        <line x1="16" x2="16" y1="2" y2="6" />
+                                        <line x1="8" x2="8" y1="2" y2="6" />
+                                        <line x1="3" x2="21" y1="10" y2="10" />
+                                        <path d="m9 16 2 2 4-4" />
+                                    </svg>
+                                    <span>No cards found matching your criteria.</span>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Scripts -->
+    <script src="db.js"></script>
+    <script src="manage_cards.js"></script>
+</body>
+
+</html>
