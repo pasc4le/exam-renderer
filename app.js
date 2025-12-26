@@ -6,7 +6,7 @@ let fsrsInstance = null;
 
 (async function loadFSRS() {
     try {
-        fsrsLib = await import('https://esm.sh/ts-fsrs@latest');
+        fsrsLib = await import('./lib/ts-fsrs.js');
         const { FSRS } = fsrsLib;
         fsrsInstance = new FSRS();
         console.log("FSRS Library Loaded");

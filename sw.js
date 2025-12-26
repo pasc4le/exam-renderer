@@ -1,4 +1,4 @@
-const CACHE_NAME = 'exam-renderer-v1';
+const CACHE_NAME = 'exam-renderer-v2';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -6,6 +6,7 @@ const ASSETS_TO_CACHE = [
   '/app.js',
   '/manage_cards.js',
   '/db.js',
+  '/lib/ts-fsrs.js',
   '/schema.json',
   '/site.webmanifest',
   '/favicon.ico',
