@@ -33,9 +33,22 @@
     <script src="https://cdn.jsdelivr.net/npm/markdown-it@14.1.0/dist/markdown-it.min.js"
         integrity="sha256-OMcKHnypGrQOLZ5uYBKYUacX7Rx9Ssu91Bv5UDeRz2g=" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => {
+                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('ServiceWorker registration failed: ', error);
+                    });
+            });
+        }
+    </script>
 </head>
 
-<body class="text-slate-800 bg-slate-50 dark:bg-slate-900 dark:text-slate-100 transition-colors duration-300">
+<body class="text-slate-800 bg-slate-50 dark:bg-slate-950 dark:text-slate-100 transition-colors duration-300">
     <div class="max-w-screen-lg mx-auto py-8 px-6" x-data="exam" x-init="initApp()">
 
         <!-- Header & Nav -->
@@ -46,22 +59,22 @@
             </h1>
 
             <nav
-                class="flex gap-2 p-1 bg-white dark:bg-slate-800 dark:border-slate-700 rounded-xl shadow-sm border border-slate-200 transition-colors">
+                class="flex flex-wrap gap-2 p-1 bg-white dark:bg-slate-800 dark:border-slate-700 rounded-xl shadow-sm border border-slate-200 transition-colors">
                 <button @click="view = 'load'"
                     :class="view === 'load' ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 font-medium' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'"
-                    class="px-4 py-2 rounded-lg transition-colors text-sm cursor-pointer">Load</button>
+                    class="flex-1 md:flex-none px-4 py-2 rounded-lg transition-colors text-sm cursor-pointer whitespace-nowrap">Load</button>
                 <button @click="switchToGenerate()"
                     :class="view === 'generate' ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 font-medium' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'"
-                    class="px-4 py-2 rounded-lg transition-colors text-sm cursor-pointer">Generate</button>
+                    class="flex-1 md:flex-none px-4 py-2 rounded-lg transition-colors text-sm cursor-pointer whitespace-nowrap">Generate</button>
                 <button @click="view = 'exam'" :disabled="!loaded"
                     :class="view === 'exam' ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 font-medium' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed'"
-                    class="px-4 py-2 rounded-lg transition-colors text-sm cursor-pointer">Exam</button>
+                    class="flex-1 md:flex-none px-4 py-2 rounded-lg transition-colors text-sm cursor-pointer whitespace-nowrap">Exam</button>
                 <button @click="loadStats(); view = 'stats'"
                     :class="view === 'stats' ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 font-medium' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'"
-                    class="px-4 py-2 rounded-lg transition-colors text-sm cursor-pointer">Statistics</button>
+                    class="flex-1 md:flex-none px-4 py-2 rounded-lg transition-colors text-sm cursor-pointer whitespace-nowrap">Statistics</button>
                 <button @click="loadCards(); view = 'cards'"
                     :class="view === 'cards' ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 font-medium' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'"
-                    class="px-4 py-2 rounded-lg transition-colors text-sm cursor-pointer relative">
+                    class="flex-1 md:flex-none px-4 py-2 rounded-lg transition-colors text-sm cursor-pointer relative whitespace-nowrap">
                     Cards
                     <span x-show="cardsStats.due > 0" x-text="cardsStats.due"
                         class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full"></span>
