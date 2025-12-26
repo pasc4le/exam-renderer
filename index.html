@@ -206,6 +206,20 @@
                         </button>
                     </div>
 
+                    <!-- Streaming Output -->
+                    <div x-show="isGenerating && streamingOutput" class="mt-6">
+                        <h3 class="text-sm font-semibold text-slate-600 mb-2 flex items-center gap-2">
+                            <span class="relative flex h-3 w-3">
+                                <span
+                                    class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                                <span class="relative inline-flex rounded-full h-3 w-3 bg-indigo-500"></span>
+                            </span>
+                            Generating Response info...
+                        </h3>
+                        <div class="bg-slate-900 text-slate-50 p-4 rounded-xl font-mono text-xs overflow-x-auto max-h-[300px] overflow-y-auto whitespace-pre-wrap border border-slate-700 shadow-inner custom-scrollbar"
+                            x-text="streamingOutput"></div>
+                    </div>
+
                     <div x-show="generationError"
                         class="mt-4 p-4 bg-red-50 text-red-700 rounded-xl border border-red-100 text-sm">
                         <span class="font-bold">Error:</span> <span x-text="generationError"></span>
