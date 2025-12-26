@@ -79,8 +79,21 @@
                             @click="loadExamFromHistory(ex)">
                             <div class="flex justify-between items-start mb-2">
                                 <h4 x-text="ex.title || 'Untitled Exam'"
-                                    class="font-semibold text-slate-800 line-clamp-1 group-hover:text-indigo-600 transition-colors">
+                                    class="font-semibold text-slate-800 line-clamp-1 group-hover:text-indigo-600 transition-colors flex-1 mr-2">
                                 </h4>
+                                <button @click.stop="deleteExam(ex.id)"
+                                    class="text-slate-400 hover:text-red-500 p-1 rounded-md hover:bg-red-50 transition-colors z-10"
+                                    title="Delete Exam">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                        stroke-linejoin="round">
+                                        <polyline points="3 6 5 6 21 6" />
+                                        <path
+                                            d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                        <line x1="10" y1="11" x2="10" y2="17" />
+                                        <line x1="14" y1="11" x2="14" y2="17" />
+                                    </svg>
+                                </button>
                             </div>
                             <div class="flex gap-2 mb-3">
                                 <template x-for="tag in (ex.tags || []).slice(0, 3)">
@@ -272,6 +285,7 @@
                                 <th class="px-6 py-3">Exam</th>
                                 <th class="px-6 py-3">Tags</th>
                                 <th class="px-6 py-3 text-right">Score</th>
+                                <th class="px-6 py-3 text-center">Actions</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100">
@@ -298,6 +312,21 @@
                                                 x-text="'(' + res.score + '/' + res.total + ')'"></span>
                                         </div>
                                     </td>
+                                    <td class="px-6 py-4 text-center">
+                                        <button @click="deleteResult(res.id)"
+                                            class="text-slate-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                                            title="Delete Result">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="3 6 5 6 21 6" />
+                                                <path
+                                                    d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                                <line x1="10" y1="11" x2="10" y2="17" />
+                                                <line x1="14" y1="11" x2="14" y2="17" />
+                                            </svg>
+                                        </button>
+                                    </td>
                                 </tr>
                             </template>
                             <template x-if="examResults.length === 0">
@@ -314,315 +343,8 @@
     </div>
 
     <!-- Scripts -->
-    <script>
-        // --- IndexedDB Helper ---
-        const DB_NAME = 'ExamRendererDB';
-        const DB_VERSION = 1;
-
-        const openDB = () => {
-            return new Promise((resolve, reject) => {
-                const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-                request.onerror = (event) => {
-                    console.error("IndexedDB error:", event.target.errorCode);
-                    reject("IndexedDB error: " + event.target.errorCode);
-                };
-
-                request.onupgradeneeded = (event) => {
-                    const db = event.target.result;
-                    if (!db.objectStoreNames.contains('exams')) {
-                        const examsStore = db.createObjectStore('exams', { keyPath: 'id' });
-                        examsStore.createIndex('lastOpened', 'lastOpened', { unique: false });
-                    }
-                    if (!db.objectStoreNames.contains('results')) {
-                        const resultsStore = db.createObjectStore('results', { keyPath: 'id', autoIncrement: true });
-                        resultsStore.createIndex('examId', 'examId', { unique: false });
-                        resultsStore.createIndex('timestamp', 'timestamp', { unique: false });
-                    }
-                };
-
-                request.onsuccess = (event) => resolve(event.target.result);
-            });
-        };
-
-        const dbOp = async (mode, storeName, callback) => {
-            try {
-                const db = await openDB();
-                return new Promise((resolve, reject) => {
-                    const tx = db.transaction([storeName], mode);
-                    const store = tx.objectStore(storeName);
-
-                    tx.oncomplete = () => {
-                        // Transaction complete
-                    };
-
-                    tx.onerror = (e) => reject(e);
-
-                    // Execute the callback which should return a request (or we just use the transaction)
-                    // We expect callback to perform an action and return the request if needed, 
-                    // but often we just wait for transaction completion or specific request success.
-                    // For simplicity, let's assume callback returns the request we want to await.
-                    const request = callback(store);
-
-                    if (request) {
-                        request.onsuccess = (e) => resolve(e.target.result);
-                        request.onerror = (e) => reject(e);
-                    } else {
-                        // If no request returned, resolve on transaction complete (covered by tx.oncomplete implicitly if logic was here)
-                        // But for this helper, let's stick to returning a request.
-                    }
-                });
-            } catch (err) {
-                console.error("DB Op failed", err);
-                throw err;
-            }
-        };
-
-        const getAllFromIndex = async (storeName, indexName) => {
-            const db = await openDB();
-            return new Promise((resolve, reject) => {
-                const tx = db.transaction(storeName, 'readonly');
-                const store = tx.objectStore(storeName);
-                const index = store.index(indexName);
-                const request = index.getAll();
-
-                request.onsuccess = (event) => {
-                    // sort desc
-                    const res = event.target.result;
-                    // Sorting in reverse chronological order (newest first)
-                    resolve(res.sort((a, b) => b[indexName] - a[indexName]));
-                };
-                request.onerror = reject;
-            });
-        };
-
-
-        // --- Chart Helper ---
-        let chartInstance = null;
-
-        document.addEventListener("alpine:init", () => {
-            window.Alpine.data("exam", () => ({
-                view: 'load',
-                data: { exam_title: "Exam", questions: [] },
-                loaded: false,
-                showAnswers: false,
-                recentExams: [],
-                examResults: [],
-                availableTags: [],
-                selectedTag: '',
-                currentExamId: null,
-
-                async initDB() {
-                    try {
-                        this.recentExams = await getAllFromIndex('exams', 'lastOpened');
-                    } catch (e) {
-                        console.error("DB Init failed", e);
-                    }
-                },
-
-                async loadExamFromFile(e) {
-                    const file = e.target.files[0];
-                    if (!file) return;
-
-                    const reader = new FileReader();
-                    reader.onload = async (e) => {
-                        try {
-                            const content = JSON.parse(e.target.result);
-                            await this.processAndLoadExam(content, Date.now().toString());
-                        } catch (err) {
-                            alert("Failed to parse JSON: " + err.message);
-                        }
-                    };
-                    reader.readAsText(file);
-                },
-
-                async loadExamFromHistory(examRecord) {
-                    await this.processAndLoadExam(examRecord.content, examRecord.id);
-                },
-
-                async processAndLoadExam(content, id) {
-                    this.data = JSON.parse(JSON.stringify(content)); // Deep copy to avoid reference issues
-                    this.currentExamId = id;
-
-                    // Render MD
-                    const md = window.markdownit();
-                    this.data.questions = this.data.questions.map((q) => {
-                        if (q?.answer?.explanation) {
-                            q.answer.explanation = md.render(q.answer.explanation);
-                        }
-                        if (!q.user_answer) q.user_answer = ""; // init
-                        return q;
-                    });
-
-                    // Save to DB as recent
-                    const examRecord = {
-                        id: id,
-                        title: this.data.exam_title,
-                        content: JSON.parse(JSON.stringify(content)), // Store original content without user answers or md rendering
-                        tags: JSON.parse(JSON.stringify(this.data.tags || [])),
-                        lastOpened: Date.now()
-                    };
-
-                    await dbOp('readwrite', 'exams', (store) => store.put(examRecord));
-                    // Update list
-                    this.recentExams = await getAllFromIndex('exams', 'lastOpened');
-
-                    this.loaded = true;
-                    this.view = 'exam';
-                    this.showAnswers = false;
-                },
-
-                toggleAnswers(e) {
-                    this.showAnswers = e.target.checked;
-                },
-
-                saveAnswersToFile() {
-                    // Similar to existing logic but maybe stripping unnecessary fields
-                    const examWithAnswers = JSON.parse(JSON.stringify(this.data));
-                    const blob = new Blob([JSON.stringify(examWithAnswers, null, 2)], { type: "application/json" });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement("a");
-                    a.href = url;
-                    a.download = (this.data.exam_title || 'exam').replace(/[^a-z0-9]/gi, '_').toLowerCase() + "_answers.json";
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-                },
-
-                checkAnswer(q) {
-                    if (!q.user_answer) return false;
-
-                    // Normalize solution to array to handle single string or array
-                    const solutions = Array.isArray(q.answer.solution) ? q.answer.solution : [q.answer.solution];
-
-                    const normalizedUserAnswer = q.user_answer.trim().toLowerCase();
-
-                    // Check if any solution matches
-                    return solutions.some(sol => {
-                        const s = sol.trim().toLowerCase();
-                        if (q.options && q.options.length > 0) {
-                            // For MCQs:
-                            // 1. Exact Key match ("a" == "a")
-                            // 2. Key with paren match ("a" == "a)") - unlikely if we control value but safe to check
-                            // 3. Full text match (if solution provided full text)
-                            return s === normalizedUserAnswer ||
-                                s.startsWith(normalizedUserAnswer + ")") ||
-                                s.startsWith(normalizedUserAnswer + ".");
-                        } else {
-                            // Text match
-                            return s === normalizedUserAnswer;
-                        }
-                    });
-                },
-
-                async submitExam() {
-                    if (!confirm("Are you sure you want to finish the exam? This will save your result.")) return;
-
-                    let score = 0;
-                    let total = 0;
-
-                    this.data.questions.forEach(q => {
-                        total++;
-                        if (this.checkAnswer(q)) score++;
-                    });
-
-                    // Save Result
-                    const result = {
-                        examId: this.currentExamId,
-                        examTitle: this.data.exam_title,
-                        tags: JSON.parse(JSON.stringify(this.data.tags || [])),
-                        score: score,
-                        total: total,
-                        timestamp: Date.now()
-                    };
-
-                    await dbOp('readwrite', 'results', (store) => store.add(result));
-
-                    alert(`Exam Finished!\nScore: ${score}/${total} (${Math.round(score / total * 100)}%)`);
-                    this.showAnswers = true;
-                },
-
-                async loadStats() {
-                    const db = await openDB();
-                    // We'll just read all results for now, not efficient for huge datasets but fine here
-                    const tx = db.transaction('results', 'readonly');
-                    const store = tx.objectStore('results');
-                    const index = store.index('timestamp');
-                    const request = index.getAll();
-
-                    request.onsuccess = (e) => {
-                        this.examResults = e.target.result.reverse(); // Newest first
-
-                        // Extract Unique Tags
-                        const tags = new Set();
-                        this.examResults.forEach(r => {
-                            if (r.tags) r.tags.forEach(t => tags.add(t));
-                        });
-                        this.availableTags = Array.from(tags).sort();
-                    };
-                },
-
-                updateChart() {
-                    const ctx = document.getElementById('scoreChart');
-                    // Reset if no tag
-                    if (!this.selectedTag) {
-                        if (chartInstance) chartInstance.destroy();
-                        return;
-                    }
-
-                    const filteredResults = this.examResults
-                        .filter(r => r.tags && r.tags.includes(this.selectedTag))
-                        .sort((a, b) => a.timestamp - b.timestamp); // Oldest to newest for chart
-
-                    const labels = filteredResults.map(r => new Date(r.timestamp).toLocaleDateString());
-                    const dataPoints = filteredResults.map(r => (r.score / r.total) * 100);
-
-
-
-                    if (chartInstance) {
-                        chartInstance.destroy();
-                    }
-
-                    chartInstance = new Chart(ctx, {
-                        type: 'line',
-                        data: {
-                            labels: labels,
-                            datasets: [{
-                                label: `Score % for "${this.selectedTag}"`,
-                                data: dataPoints,
-                                borderColor: 'rgb(79, 70, 229)',
-                                backgroundColor: 'rgba(79, 70, 229, 0.1)',
-                                tension: 0.3,
-                                fill: true,
-                                pointBackgroundColor: 'rgb(79, 70, 229)',
-                                pointRadius: 4,
-                                pointHoverRadius: 6
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            interaction: {
-                                intersect: false,
-                                mode: 'index',
-                            },
-                            scales: {
-                                y: {
-                                    beginAtZero: true,
-                                    max: 100,
-                                    title: {
-                                        display: true,
-                                        text: 'Score (%)'
-                                    }
-                                }
-                            }
-                        }
-                    });
-                }
-            }));
-        });
-    </script>
+    <script src="db.js"></script>
+    <script src="app.js"></script>
 </body>
 
 </html>
