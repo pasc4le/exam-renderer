@@ -458,8 +458,8 @@
                     const examRecord = {
                         id: id,
                         title: this.data.exam_title,
-                        content: content, // Store original content without user answers or md rendering
-                        tags: this.data.tags || [],
+                        content: JSON.parse(JSON.stringify(content)), // Store original content without user answers or md rendering
+                        tags: JSON.parse(JSON.stringify(this.data.tags || [])),
                         lastOpened: Date.now()
                     };
 
@@ -531,7 +531,7 @@
                     const result = {
                         examId: this.currentExamId,
                         examTitle: this.data.exam_title,
-                        tags: this.data.tags || [],
+                        tags: JSON.parse(JSON.stringify(this.data.tags || [])),
                         score: score,
                         total: total,
                         timestamp: Date.now()
