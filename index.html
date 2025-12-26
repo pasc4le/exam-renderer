@@ -44,6 +44,9 @@
                 <button @click="view = 'load'"
                     :class="view === 'load' ? 'bg-indigo-50 text-indigo-600 font-medium' : 'text-slate-500 hover:bg-slate-50'"
                     class="px-4 py-2 rounded-lg transition-colors text-sm cursor-pointer">Load</button>
+                <button @click="switchToGenerate()"
+                    :class="view === 'generate' ? 'bg-indigo-50 text-indigo-600 font-medium' : 'text-slate-500 hover:bg-slate-50'"
+                    class="px-4 py-2 rounded-lg transition-colors text-sm cursor-pointer">Generate</button>
                 <button @click="view = 'exam'" :disabled="!loaded"
                     :class="view === 'exam' ? 'bg-indigo-50 text-indigo-600 font-medium' : 'text-slate-500 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed'"
                     class="px-4 py-2 rounded-lg transition-colors text-sm cursor-pointer">Exam</button>
@@ -105,6 +108,125 @@
                                     x-text="new Date(ex.lastOpened).toLocaleDateString()"></span></p>
                         </div>
                     </template>
+                </div>
+            </div>
+        </div>
+
+        <!-- GENERATE VIEW -->
+        <div x-show="view === 'generate'" x-transition.opacity>
+            <div class="max-w-3xl mx-auto">
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 mb-8">
+                    <div class="flex justify-between items-start mb-6">
+                        <div>
+                            <h2 class="text-xl font-semibold mb-2">Generate Exam with AI</h2>
+                            <p class="text-slate-500 text-sm">Create a custom exam using Google's Gemini models.</p>
+                        </div>
+                        <button @click="showApiKeyModal = true"
+                            class="text-indigo-600 hover:text-indigo-700 text-sm font-medium flex items-center gap-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path
+                                    d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z">
+                                </path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                            Configure API Key
+                        </button>
+                    </div>
+
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Topic or Description</label>
+                        <textarea x-model="generatePrompt"
+                            class="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none transition-all placeholder:text-slate-400 text-slate-700 min-h-[150px]"
+                            placeholder="Describe the exam you want to generate (e.g., 'A high school physics exam about kinematics with 5 multiple choice questions and 2 word problems')..."></textarea>
+                    </div>
+
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Attachments (Optional)</label>
+                        <div class="flex flex-col gap-3">
+                            <label
+                                class="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 text-slate-600 text-sm w-fit transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <path
+                                        d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48">
+                                    </path>
+                                </svg>
+                                Attach Files
+                                <input type="file" multiple @change="handleFileSelect" class="hidden"
+                                    accept="image/*,application/pdf,text/plain">
+                            </label>
+
+                            <div class="flex flex-wrap gap-2" x-show="attachedFiles.length > 0">
+                                <template x-for="(file, index) in attachedFiles" :key="index">
+                                    <div
+                                        class="flex items-center gap-2 bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-lg text-sm border border-indigo-100">
+                                        <span class="max-w-[150px] truncate" x-text="file.name"></span>
+                                        <span class="text-xs text-indigo-400" x-text="formatSize(file.size)"></span>
+                                        <button @click="removeFile(index)" class="hover:text-indigo-900 ml-1">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round">
+                                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end">
+                        <button @click="generateExam" :disabled="isGenerating || !generatePrompt.trim()"
+                            class="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-3 rounded-xl transition-colors font-medium shadow-md shadow-indigo-200 flex items-center gap-2">
+                            <span x-show="!isGenerating">Generate Exam</span>
+                            <span x-show="isGenerating" class="flex items-center gap-2">
+                                <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg"
+                                    fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                        stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor"
+                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                    </path>
+                                </svg>
+                                Generating...
+                            </span>
+                        </button>
+                    </div>
+
+                    <div x-show="generationError"
+                        class="mt-4 p-4 bg-red-50 text-red-700 rounded-xl border border-red-100 text-sm">
+                        <span class="font-bold">Error:</span> <span x-text="generationError"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- API KEY MODAL -->
+        <div x-show="showApiKeyModal" class="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style="display: none;">
+            <div class="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" @click="showApiKeyModal = false"></div>
+            <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 relative z-10">
+                <h3 class="text-lg font-bold text-slate-800 mb-2">Set Google API Key</h3>
+                <p class="text-slate-500 text-sm mb-4">
+                    Enter your Google Gemini API Key. It will be stored locally in your browser.
+                    <a href="https://aistudio.google.com/app/apikey" target="_blank"
+                        class="text-indigo-600 hover:underline">Get an API key here</a>.
+                </p>
+
+                <input type="password" x-model="tempApiKey" @keydown.enter="saveApiKey"
+                    class="w-full p-3 rounded-lg border border-slate-200 mb-4 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none"
+                    placeholder="AIzaSy...">
+
+                <div class="flex justify-end gap-3">
+                    <button @click="showApiKeyModal = false"
+                        class="text-slate-500 hover:text-slate-700 px-4 py-2 text-sm font-medium">Cancel</button>
+                    <button @click="saveApiKey"
+                        class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700">Save
+                        Key</button>
                 </div>
             </div>
         </div>

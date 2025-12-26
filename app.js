@@ -13,6 +13,15 @@ document.addEventListener("alpine:init", () => {
         selectedTag: '',
         currentExamId: null,
 
+        // Generate State
+        apiKey: localStorage.getItem('exam_renderer_api_key') || '',
+        tempApiKey: '',
+        showApiKeyModal: false,
+        generatePrompt: '',
+        isGenerating: false,
+        generationError: null,
+        attachedFiles: [],
+
         async initDB() {
             try {
                 this.recentExams = await getAllFromIndex('exams', 'lastOpened');
@@ -242,6 +251,144 @@ document.addEventListener("alpine:init", () => {
             } catch (e) {
                 console.error("Failed to delete result", e);
                 alert("Failed to delete result");
+            }
+        },
+
+        switchToGenerate() {
+            this.view = 'generate';
+            if (!this.apiKey) {
+                this.showApiKeyModal = true;
+            }
+        },
+
+        saveApiKey() {
+            if (this.tempApiKey.trim()) {
+                this.apiKey = this.tempApiKey.trim();
+                localStorage.setItem('exam_renderer_api_key', this.apiKey);
+                this.showApiKeyModal = false;
+                this.tempApiKey = '';
+            } else {
+                alert("Please enter a valid API Key");
+            }
+        },
+
+        handleFileSelect(e) {
+            const files = Array.from(e.target.files);
+            if (!files.length) return;
+
+            files.forEach(file => {
+                // simple max size check (e.g. 4MB)
+                if (file.size > 4 * 1024 * 1024) {
+                    alert(`File ${file.name} is too large. Max 4MB.`);
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = (evt) => {
+                    const base64Data = evt.target.result.split(',')[1];
+                    this.attachedFiles.push({
+                        name: file.name,
+                        type: file.type,
+                        size: file.size,
+                        base64: base64Data
+                    });
+                };
+                reader.readAsDataURL(file);
+            });
+            // reset input
+            e.target.value = '';
+        },
+
+        removeFile(index) {
+            this.attachedFiles.splice(index, 1);
+        },
+
+        formatSize(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        },
+
+        async generateExam() {
+            if (!this.apiKey) {
+                this.showApiKeyModal = true;
+                return;
+            }
+
+            this.isGenerating = true;
+            this.generationError = null;
+
+            try {
+                // Fetch schema
+                const schemaResponse = await fetch('schema.json');
+                if (!schemaResponse.ok) throw new Error("Failed to load schema template");
+                const schema = await schemaResponse.json();
+
+                const systemInstruction = `You are an expert exam creator. Generate a JSON exam strictly following the provided schema. 
+The user will provide a topic or description. Ensure valid JSON output. Do not wrap in markdown code blocks.`;
+
+                const prompt = `Generate a valid JSON exam based on this schema: ${JSON.stringify(schema)}\n\nTopic/Description: ${this.generatePrompt}`;
+
+                // Prepare content parts
+                const contentParts = [{ text: prompt }];
+
+                // attach inline data
+                this.attachedFiles.forEach(f => {
+                    contentParts.push({
+                        inline_data: {
+                            mime_type: f.type,
+                            data: f.base64
+                        }
+                    });
+                });
+
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${this.apiKey}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: contentParts
+                        }],
+                        systemInstruction: {
+                            parts: [{ text: systemInstruction }]
+                        },
+                        generationConfig: {
+                            response_mime_type: "application/json"
+                        }
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error?.message || "API Request Failed");
+                }
+
+                const data = await response.json();
+                const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                if (!generatedText) throw new Error("No content generated");
+
+                let parsedExam;
+                try {
+                    parsedExam = JSON.parse(generatedText);
+                } catch (e) {
+                    // Try to clean markdown code blocks if present (though response_mime_type should handle it)
+                    const cleanText = generatedText.replace(/```json\n|\n```|```/g, "");
+                    parsedExam = JSON.parse(cleanText);
+                }
+
+                // Load the exam
+                await this.processAndLoadExam(parsedExam, "gen_" + Date.now().toString());
+
+            } catch (e) {
+                console.error("Generation failed", e);
+                this.generationError = e.message;
+            } finally {
+                this.isGenerating = false;
             }
         }
     }));
