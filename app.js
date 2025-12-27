@@ -52,10 +52,10 @@ document.addEventListener("alpine:init", () => {
         streamingOutput: '', // Buffer for streaming output
         generationError: null,
         attachedFiles: [],
-        availableModels: [
+        availableModels: JSON.parse(localStorage.getItem('fetchedModels') || 'null') || [
             { name: "models/gemini-1.5-flash", displayName: "Gemini 1.5 Flash" }
         ],
-        selectedModel: "models/gemini-1.5-flash",
+        selectedModel: localStorage.getItem('selectedModel') || "models/gemini-1.5-flash",
         isFetchingModels: false,
 
 
@@ -63,6 +63,11 @@ document.addEventListener("alpine:init", () => {
         async initApp() {
             // Initialize DB
             await this.initDB();
+
+            // Watchers
+            this.$watch('selectedModel', (value) => {
+                localStorage.setItem('selectedModel', value);
+            });
         },
 
 
@@ -425,6 +430,7 @@ document.addEventListener("alpine:init", () => {
                     this.availableModels = data.models.filter(m =>
                         m.supportedGenerationMethods && m.supportedGenerationMethods.includes("generateContent")
                     );
+                    localStorage.setItem('fetchedModels', JSON.stringify(this.availableModels));
                 } else {
                     throw new Error("No models found in response");
                 }
